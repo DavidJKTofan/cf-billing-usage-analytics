@@ -1,0 +1,56 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "cf-billing-usage-analytics",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-02-25",
+	"compatibility_flags": ["nodejs_compat"],
+
+	// Observability for debugging and monitoring
+	"observability": {
+		"enabled": true,
+		"logs": {
+			"head_sampling_rate": 1
+		}
+	},
+
+	// Static assets (dashboard UI)
+	"assets": {
+		"directory": "./public"
+	},
+
+	// Workflow binding for usage monitoring
+	"workflows": [
+		{
+			"name": "usage-monitor-workflow",
+			"binding": "USAGE_MONITOR_WORKFLOW",
+			"class_name": "UsageMonitorWorkflow"
+		}
+	],
+
+	// Scheduled triggers - runs weekly on Monday at 9 AM UTC
+	// Adjust based on your monitoring needs:
+	// - "0 * * * *"     = Every hour
+	// - "0 */6 * * *"   = Every 6 hours
+	// - "0 0 * * *"     = Daily at midnight
+	// - "0 9 * * 1"     = Weekly on Monday at 9 AM UTC
+	"triggers": {
+		"crons": [
+			"0 9 * * 1"
+		]
+	}
+
+	// SECRETS (set via `wrangler secret put`):
+	// Only 2 required! Zones are automatically discovered from your account.
+	//
+	// Required:
+	// - CLOUDFLARE_API_TOKEN_ANALYTICS_READ_ONLY: API token with Analytics:Read + Zone:Read
+	// - CLOUDFLARE_ACCOUNT_ID: Your Cloudflare account ID
+	//
+	// Optional:
+	// - DISCORD_WEBHOOK_URL: Discord webhook URL for notifications
+	// - CLOUDFLARE_ZONE_TAGS: Comma-separated zone IDs (to restrict to specific zones)
+	//
+	// Optional security hardening:
+	// - API_ACCESS_KEY: Protect sensitive endpoints (/api/trigger, /api/test-discord, /api/check)
+	// - ALLOWED_ORIGINS: Restrict CORS origins (default: "*" allows all)
+}

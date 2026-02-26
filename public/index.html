@@ -1,0 +1,2464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="googlebot" content="noindex, nofollow">
+  <title>Cloudflare Usage Monitor</title>
+  <style>
+    :root {
+      --cf-orange: #f38020;
+      --cf-orange-dark: #d4700f;
+      --bg-primary: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-tertiary: #21262d;
+      --text-primary: #f0f6fc;
+      --text-secondary: #8b949e;
+      --border-color: #30363d;
+      --success: #238636;
+      --warning: #d29922;
+      --danger: #da3633;
+      --info: #58a6ff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    /* Header */
+    header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 16px 0;
+      margin-bottom: 24px;
+    }
+
+    .header-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo svg {
+      width: 32px;
+      height: 32px;
+    }
+
+    .logo h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      background: var(--border-color);
+    }
+
+    .btn-primary {
+      background: var(--cf-orange);
+      border-color: var(--cf-orange);
+    }
+
+    .btn-primary:hover {
+      background: var(--cf-orange-dark);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0;
+    }
+
+    .tab {
+      padding: 12px 16px;
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 14px;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: all 0.2s;
+    }
+
+    .tab:hover {
+      color: var(--text-primary);
+    }
+
+    .tab.active {
+      color: var(--cf-orange);
+      border-bottom-color: var(--cf-orange);
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      margin: 4px 0;
+    }
+
+    .stat-value.alert { color: var(--danger); }
+    .stat-value.warning { color: var(--warning); }
+    .stat-value.healthy { color: var(--success); }
+    .stat-value.info { color: var(--info); }
+
+    /* Progress Bar */
+    .progress-container {
+      margin: 12px 0;
+    }
+
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+
+    .progress-bar {
+      height: 8px;
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+
+    .progress-fill.healthy { background: var(--success); }
+    .progress-fill.warning { background: var(--warning); }
+    .progress-fill.alert { background: #e85d5d; }  /* Light red 90-100% */
+    .progress-fill.critical { background: #ff2d2d; }  /* Bright red >100% */
+
+    /* Usage Table */
+    .usage-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .usage-table th,
+    .usage-table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .usage-table th {
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 500;
+    }
+
+    .usage-table tr:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .status-badge.healthy { background: rgba(35, 134, 54, 0.2); color: #3fb950; }
+    .status-badge.warning { background: rgba(210, 153, 34, 0.2); color: #d29922; }
+    .status-badge.alert { background: rgba(232, 93, 93, 0.2); color: #e85d5d; }  /* Light red 90-100% */
+    .status-badge.critical { background: rgba(255, 45, 45, 0.3); color: #ff2d2d; }  /* Bright red >100% */
+    .status-badge.error { background: rgba(139, 148, 158, 0.2); color: #8b949e; }
+    .status-badge.disabled { background: rgba(88, 166, 255, 0.15); color: #58a6ff; }  /* Blue for disabled */
+
+    /* Config Section */
+    .config-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+    }
+
+    .config-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .config-label {
+      color: var(--text-secondary);
+    }
+
+    .config-value {
+      font-family: monospace;
+      color: var(--text-primary);
+    }
+
+    .config-value.success { color: var(--success); }
+    .config-value.danger { color: var(--danger); }
+
+    /* Alerts */
+    .alert {
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .alert-warning {
+      background: rgba(210, 153, 34, 0.15);
+      border: 1px solid rgba(210, 153, 34, 0.4);
+      color: var(--warning);
+    }
+
+    .alert-success {
+      background: rgba(35, 134, 54, 0.15);
+      border: 1px solid rgba(35, 134, 54, 0.4);
+      color: var(--success);
+    }
+
+    .alert-danger {
+      background: rgba(218, 54, 51, 0.15);
+      border: 1px solid rgba(218, 54, 51, 0.4);
+      color: var(--danger);
+    }
+
+    /* Loading */
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      color: var(--text-secondary);
+    }
+
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--border-color);
+      border-top-color: var(--cf-orange);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 12px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Responsive - Tablet */
+    @media (max-width: 992px) {
+      .container {
+        padding: 16px;
+      }
+
+      .stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+      }
+
+      .filter-controls {
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .filter-group {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      .filter-group[style*="border-left"] {
+        border-left: none !important;
+        padding-left: 0 !important;
+        margin-left: 0 !important;
+        padding-top: 12px;
+        border-top: 1px solid var(--border-color);
+      }
+
+      .config-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Responsive - Mobile */
+    @media (max-width: 768px) {
+      .header-content {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .header-actions {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .header-actions .btn {
+        flex: 1;
+        justify-content: center;
+      }
+
+      .logo h1 {
+        font-size: 1.1rem;
+      }
+
+      .tabs {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+
+      .tabs::-webkit-scrollbar {
+        display: none;
+      }
+
+      .tab {
+        padding: 10px 12px;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+
+      .stat-card {
+        padding: 12px;
+      }
+
+      .stat-value {
+        font-size: 1.5rem;
+      }
+
+      .stat-label {
+        font-size: 11px;
+      }
+
+      /* Make table horizontally scrollable on mobile */
+      .category-products {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .usage-table {
+        font-size: 12px;
+        min-width: 600px;
+      }
+
+      .usage-table th,
+      .usage-table td {
+        padding: 8px 6px;
+      }
+
+      /* Hide limit column on small screens */
+      .usage-table th:nth-child(3),
+      .usage-table td:nth-child(3) {
+        display: none;
+      }
+
+      .progress-container {
+        min-width: 100px;
+      }
+
+      .info-banner {
+        font-size: 12px;
+        padding: 10px 12px;
+      }
+
+      .card {
+        padding: 14px;
+      }
+
+      .card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+      }
+
+      /* Category header mobile */
+      .category-header {
+        padding: 10px 12px;
+      }
+
+      .category-stats {
+        display: none;
+      }
+
+      .category-name {
+        font-size: 13px;
+      }
+
+      /* Confidence tooltip mobile - centered modal-like overlay */
+      .confidence-tooltip .tooltip-content {
+        left: 16px !important;
+        right: 16px !important;
+        top: 50% !important;
+        transform: translateY(-50%);
+        min-width: auto;
+        max-width: none;
+        width: auto;
+      }
+
+      .confidence-tooltip .tooltip-content::after,
+      .confidence-tooltip .tooltip-content::before {
+        display: none;
+      }
+
+      .confidence-badge {
+        font-size: 10px;
+        padding: 1px 4px;
+      }
+
+      /* Modal mobile */
+      .modal {
+        margin: 10px;
+        max-height: 90vh;
+      }
+
+      .modal-body {
+        padding: 14px;
+      }
+
+      /* Footer mobile */
+      footer {
+        padding: 16px 0;
+      }
+
+      footer p {
+        font-size: 12px;
+      }
+    }
+
+    /* Responsive - Small Mobile */
+    @media (max-width: 480px) {
+      .container {
+        padding: 12px;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .stat-card {
+        padding: 10px;
+      }
+
+      .stat-value {
+        font-size: 1.3rem;
+      }
+
+      .btn {
+        padding: 6px 10px;
+        font-size: 13px;
+      }
+
+      .btn svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      /* Stack filter options vertically */
+      #filter-zone {
+        min-width: 100%;
+      }
+
+      .usage-table {
+        min-width: 500px;
+      }
+
+      /* Smaller status badges */
+      .status-badge {
+        padding: 2px 6px;
+        font-size: 10px;
+      }
+    }
+
+    /* Print styles */
+    @media print {
+      .header-actions,
+      .filter-controls,
+      .btn,
+      .tabs {
+        display: none !important;
+      }
+
+      .tab-content {
+        display: block !important;
+      }
+
+      body {
+        background: white;
+        color: black;
+      }
+
+      .card,
+      .stat-card {
+        border: 1px solid #ccc;
+        background: white;
+      }
+    }
+
+    /* Tab Content */
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Footer */
+    footer {
+      margin-top: 40px;
+      padding: 20px 0;
+      border-top: 1px solid var(--border-color);
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    footer a {
+      color: var(--cf-orange);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* API Links */
+    .api-link {
+      color: var(--info);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .api-link:hover {
+      color: var(--cf-orange);
+      text-decoration: underline;
+    }
+
+    .api-link code {
+      background: rgba(88, 166, 255, 0.1);
+      border: 1px solid rgba(88, 166, 255, 0.3);
+    }
+
+    .api-link:hover code {
+      background: rgba(243, 128, 32, 0.1);
+      border-color: rgba(243, 128, 32, 0.3);
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 12px 20px;
+      border-radius: 6px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      z-index: 1000;
+      animation: slideIn 0.3s ease;
+    }
+
+    .toast.success { border-color: var(--success); }
+    .toast.error { border-color: var(--danger); }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* Filter controls */
+    .filter-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 20px;
+      padding: 16px;
+      background: var(--bg-tertiary);
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      align-items: center;
+    }
+
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .filter-checkbox {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--cf-orange);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .filter-label {
+      font-size: 14px;
+      cursor: pointer;
+      color: var(--text-primary);
+    }
+
+    .filter-help {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-left: 4px;
+      flex-shrink: 0;
+    }
+
+    .filter-select {
+      padding: 8px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-size: 14px;
+      min-width: 180px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+
+    .filter-select:hover {
+      border-color: var(--cf-orange);
+    }
+
+    .filter-select:focus {
+      outline: none;
+      border-color: var(--cf-orange);
+      box-shadow: 0 0 0 2px rgba(243, 128, 32, 0.2);
+    }
+
+    /* Info banner */
+    .info-banner {
+      padding: 12px 16px;
+      background: rgba(88, 166, 255, 0.1);
+      border: 1px solid rgba(88, 166, 255, 0.3);
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .info-banner strong {
+      color: var(--info);
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    .modal {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      max-width: 600px;
+      width: 100%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .modal-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: 4px;
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .modal-close:hover {
+      color: var(--text-primary);
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    /* Discord embed preview */
+    .discord-embed {
+      background: #2f3136;
+      border-left: 4px solid var(--cf-orange);
+      border-radius: 4px;
+      padding: 12px 16px;
+      margin-bottom: 12px;
+    }
+
+    .discord-embed.alert {
+      border-left-color: var(--danger);
+    }
+
+    .discord-embed.warning {
+      border-left-color: var(--warning);
+    }
+
+    .discord-embed.healthy {
+      border-left-color: var(--success);
+    }
+
+    .discord-embed-title {
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+
+    .discord-embed-field {
+      margin-bottom: 8px;
+    }
+
+    .discord-embed-field-name {
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+
+    .discord-embed-field-value {
+      color: #dcddde;
+      font-family: monospace;
+      font-size: 14px;
+    }
+
+    .discord-embed-footer {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-top: 12px;
+      padding-top: 8px;
+      border-top: 1px solid #40444b;
+    }
+
+    /* Loading overlay for filter changes */
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(13, 17, 23, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      border-radius: 8px;
+    }
+
+    .loading-overlay.hidden {
+      display: none;
+    }
+
+    .loading-content {
+      text-align: center;
+      color: var(--text-primary);
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border-color);
+      border-top-color: var(--cf-orange);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 12px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    /* Make card position relative for overlay */
+    .card.has-loading {
+      position: relative;
+    }
+
+    /* Confidence interval badge - clickable button style */
+    .confidence-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+
+    .confidence-badge:focus {
+      outline: 2px solid var(--cf-orange);
+      outline-offset: 2px;
+    }
+
+    .confidence-badge.high {
+      background: rgba(35, 134, 54, 0.15);
+      color: #3fb950;
+      border: 1px solid rgba(35, 134, 54, 0.3);
+    }
+
+    .confidence-badge.high:hover {
+      background: rgba(35, 134, 54, 0.25);
+      border-color: rgba(35, 134, 54, 0.5);
+    }
+
+    .confidence-badge.medium {
+      background: rgba(210, 153, 34, 0.15);
+      color: #d29922;
+      border: 1px solid rgba(210, 153, 34, 0.3);
+    }
+
+    .confidence-badge.medium:hover {
+      background: rgba(210, 153, 34, 0.25);
+      border-color: rgba(210, 153, 34, 0.5);
+    }
+
+    .confidence-badge.low {
+      background: rgba(218, 54, 51, 0.15);
+      color: #f85149;
+      border: 1px solid rgba(218, 54, 51, 0.3);
+    }
+
+    .confidence-badge.low:hover {
+      background: rgba(218, 54, 51, 0.25);
+      border-color: rgba(218, 54, 51, 0.5);
+    }
+
+    .confidence-badge:active {
+      transform: scale(0.95);
+    }
+
+    /* When tooltip is open, keep badge highlighted */
+    .confidence-tooltip.active .confidence-badge {
+      box-shadow: 0 0 0 2px var(--cf-orange);
+    }
+
+    .confidence-badge svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    /* Confidence tooltip - click-to-open, fixed positioning */
+    .confidence-tooltip {
+      position: relative;
+      display: inline-block;
+    }
+
+    .confidence-tooltip .tooltip-content {
+      display: none;
+      position: fixed;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 14px;
+      min-width: 280px;
+      max-width: 340px;
+      z-index: 99999;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+      font-size: 12px;
+      text-align: left;
+      pointer-events: auto;
+      animation: tooltipFadeIn 0.15s ease-out;
+    }
+
+    @keyframes tooltipFadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Show tooltip when active (controlled by JS) */
+    .confidence-tooltip.active .tooltip-content {
+      display: block;
+    }
+
+    /* Tooltip header with close button */
+    .tooltip-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .tooltip-title {
+      font-weight: 600;
+      color: var(--cf-orange);
+      font-size: 13px;
+    }
+
+    .tooltip-close {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: 2px 6px;
+      font-size: 18px;
+      line-height: 1;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+
+    .tooltip-close:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    /* Arrow pointing down from tooltip (default: tooltip above badge) */
+    .tooltip-content::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 8px solid transparent;
+      border-top-color: var(--border-color);
+    }
+
+    .tooltip-content::before {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 7px solid transparent;
+      border-top-color: var(--bg-primary);
+      z-index: 1;
+    }
+
+    /* Arrow pointing up when tooltip is below badge */
+    .tooltip-content.tooltip-below::after {
+      top: auto;
+      bottom: 100%;
+      border-top-color: transparent;
+      border-bottom-color: var(--border-color);
+    }
+
+    .tooltip-content.tooltip-below::before {
+      top: auto;
+      bottom: 100%;
+      border-top-color: transparent;
+      border-bottom-color: var(--bg-primary);
+    }
+
+    .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .tooltip-row:last-child {
+      border-bottom: none;
+    }
+
+    .tooltip-label {
+      color: var(--text-secondary);
+    }
+
+    .tooltip-value {
+      color: var(--text-primary);
+      font-family: monospace;
+    }
+
+    /* Category sections */
+    .category-section {
+      margin-bottom: 24px;
+    }
+
+    .category-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .category-header:hover {
+      background: var(--border-color);
+    }
+
+    .category-header.collapsed {
+      border-radius: 8px;
+      margin-bottom: 0;
+    }
+
+    .category-toggle {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      transition: transform 0.2s;
+    }
+
+    .category-header.collapsed .category-toggle {
+      transform: rotate(-90deg);
+    }
+
+    .category-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--text-primary);
+      flex: 1;
+    }
+
+    .category-stats {
+      display: flex;
+      gap: 12px;
+      font-size: 12px;
+    }
+
+    .category-stat {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: var(--bg-secondary);
+    }
+
+    .category-stat.critical { color: #ff2d2d; }
+    .category-stat.alert { color: #e85d5d; }
+    .category-stat.warning { color: var(--warning); }
+    .category-stat.healthy { color: var(--success); }
+
+    .category-products {
+      border: 1px solid var(--border-color);
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      overflow: hidden;
+    }
+
+    .category-products.collapsed {
+      display: none;
+    }
+
+    .category-products .usage-table {
+      margin: 0;
+    }
+
+    .category-products .usage-table tr:last-child td {
+      border-bottom: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <div class="header-content">
+        <div class="logo">
+          <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16 2L2 9L16 16L30 9L16 2Z" fill="#f38020"/>
+            <path d="M2 23L16 30L30 23V9L16 16L2 9V23Z" fill="#faad3f"/>
+          </svg>
+          <h1>Cloudflare Usage Monitor</h1>
+        </div>
+        <div class="header-actions">
+          <button class="btn" onclick="refreshData()">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+              <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966a.25.25 0 0 1 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+            </svg>
+            Refresh
+          </button>
+          <button class="btn btn-primary" onclick="triggerWorkflow()">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+              <path d="M6.271 5.055a.5.5 0 0 1 .52.038l3.5 2.5a.5.5 0 0 1 0 .814l-3.5 2.5A.5.5 0 0 1 6 10.5v-5a.5.5 0 0 1 .271-.445z"/>
+            </svg>
+            Run Check
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('dashboard')">Dashboard</button>
+      <button class="tab" onclick="switchTab('products')">Products</button>
+      <button class="tab" onclick="switchTab('config')">Configuration</button>
+      <button class="tab" onclick="switchTab('api')">API</button>
+    </div>
+
+    <!-- Dashboard Tab -->
+    <div id="dashboard" class="tab-content active">
+      <div id="stats-loading" class="loading">
+        <div class="spinner"></div>
+        Loading dashboard data...
+      </div>
+
+      <div id="stats-content" style="display: none;">
+        <!-- Info banner about data -->
+        <div class="info-banner" id="billing-info">
+          <strong>Current Month Usage:</strong> Data shown is the <strong>cumulative total</strong> from the 
+          <span id="billing-period-display">1st of the month</span> to now (timezone: <span id="timezone-display">UTC</span>).
+          <br>
+          <em>Note: GraphQL Analytics uses <a href="https://developers.cloudflare.com/analytics/graphql-api/sampling/" target="_blank" rel="nofollow noopener" style="color: var(--info);">adaptive sampling</a> and may differ from actual billing. 
+          Look for the <span class="confidence-badge high" style="font-size: 10px; padding: 1px 4px;">97%</span> badge next to values to see 
+          <a href="https://developers.cloudflare.com/analytics/graphql-api/features/confidence-intervals/" target="_blank" rel="nofollow noopener" style="color: var(--info);">confidence intervals</a> (max 99%).</em>
+        </div>
+
+        <!-- Filter controls -->
+        <div class="filter-controls">
+          <div class="filter-group">
+            <label for="filter-zone" class="filter-label" style="margin-right: 8px;">Zone:</label>
+            <select id="filter-zone" class="filter-select" onchange="applyFilters()">
+              <option value="">All Zones (Account-wide)</option>
+            </select>
+            <span class="filter-help" title="Filter to a specific zone. When selected, only zone-scoped products are shown. Default shows account-wide data.">(i)</span>
+          </div>
+          <div class="filter-group" style="border-left: 1px solid var(--border-color); padding-left: 16px; margin-left: 8px;">
+            <input type="checkbox" id="filter-eyeball" class="filter-checkbox" onchange="applyFilters()" checked>
+            <label for="filter-eyeball" class="filter-label">Visitor traffic only</label>
+            <span class="filter-help" title="Excludes internal Cloudflare traffic. Shows only real visitor (eyeball) requests. Applies to HTTP Requests, Bandwidth, and WAF Events.">(i)</span>
+          </div>
+          <div class="filter-group">
+            <input type="checkbox" id="filter-exclude-edgeworkers" class="filter-checkbox" onchange="applyFilters()">
+            <label for="filter-exclude-edgeworkers" class="filter-label">Exclude Edge Workers</label>
+            <span class="filter-help" title="Excludes requests originating from Cloudflare Workers (fetch() calls). Applies to HTTP Requests, Bandwidth, and WAF Events.">(i)</span>
+          </div>
+          <div class="filter-group">
+            <input type="checkbox" id="filter-exclude-blocked" class="filter-checkbox" onchange="applyFilters()">
+            <label for="filter-exclude-blocked" class="filter-label">Exclude blocked (403)</label>
+            <span class="filter-help" title="Excludes requests blocked by WAF/DDoS protection (403 status). Helps approximate billable traffic.">(i)</span>
+          </div>
+          <div class="filter-group" style="border-left: 1px solid var(--border-color); padding-left: 16px; margin-left: 8px;">
+            <input type="checkbox" id="filter-hide-na" class="filter-checkbox" onchange="applyDisplayFilters()" checked>
+            <label for="filter-hide-na" class="filter-label">Hide N/A products</label>
+            <span class="filter-help" title="Hides products with no data (N/A). Uncheck to see all monitored products.">(i)</span>
+          </div>
+          <div style="flex-grow: 1;"></div>
+          <span id="filter-status" style="font-size: 12px; color: var(--text-secondary);"></span>
+        </div>
+
+        <div class="stats-grid" id="stats-grid"></div>
+
+        <div class="card has-loading" id="usage-card">
+          <div id="usage-loading-overlay" class="loading-overlay hidden">
+            <div class="loading-content">
+              <div class="loading-spinner"></div>
+              <div class="loading-text">Fetching usage data...</div>
+            </div>
+          </div>
+          <div class="card-header">
+            <h2 class="card-title">Usage Overview</h2>
+            <span id="last-updated" style="color: var(--text-secondary); font-size: 13px;"></span>
+          </div>
+          <div id="usage-alerts"></div>
+          <div id="usage-categories-container"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Products Tab -->
+    <div id="products" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Monitored Products</h2>
+        </div>
+        <p style="color: var(--text-secondary); margin-bottom: 16px;">
+          Configure which products to monitor in <code>src/config.ts</code>. 
+          Set <code>enabled: false</code> to disable monitoring for unused products.
+        </p>
+        <table class="usage-table">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Dataset</th>
+              <th>Scope</th>
+              <th>Contract Limit</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="products-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Config Tab -->
+    <div id="config" class="tab-content">
+      <div class="config-grid">
+        <div class="card">
+          <h2 class="card-title" style="margin-bottom: 16px;">Environment Status</h2>
+          <div id="env-status"></div>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title" style="margin-bottom: 16px;">Alert Settings</h2>
+          <div id="alert-settings"></div>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title" style="margin-bottom: 16px;">Billing Period</h2>
+          <div id="billing-period"></div>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title" style="margin-bottom: 16px;">Contract Caps</h2>
+          <p style="color: var(--text-secondary); margin-bottom: 12px; font-size: 13px;">
+            Custom limits configured in <code>src/config.ts</code>. Other products use default limits.
+          </p>
+          <div id="contract-caps"></div>
+        </div>
+
+        <div class="card">
+          <h2 class="card-title" style="margin-bottom: 16px;">Notifications</h2>
+          <div id="notifications-config"></div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px;">
+            <button class="btn" onclick="previewNotification()">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/>
+                <path d="M0 8s3-5.5 8-5.5S16 8 16 8s-3 5.5-8 5.5S0 8 0 8zm8 3.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/>
+              </svg>
+              Preview Notification
+            </button>
+            <button class="btn" onclick="testDiscord()">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M13.545 2.907a13.227 13.227 0 0 0-3.257-1.011.05.05 0 0 0-.052.025c-.141.25-.297.577-.406.833a12.19 12.19 0 0 0-3.658 0 8.258 8.258 0 0 0-.412-.833.051.051 0 0 0-.052-.025c-1.125.194-2.22.534-3.257 1.011a.041.041 0 0 0-.021.018C.356 6.024-.213 9.047.066 12.032c.001.014.01.028.021.037a13.276 13.276 0 0 0 3.995 2.02.05.05 0 0 0 .056-.019c.308-.42.582-.863.818-1.329a.05.05 0 0 0-.01-.059.051.051 0 0 0-.018-.011 8.875 8.875 0 0 1-1.248-.595.05.05 0 0 1-.02-.066.051.051 0 0 1 .015-.019c.084-.063.168-.129.248-.195a.05.05 0 0 1 .051-.007c2.619 1.196 5.454 1.196 8.041 0a.052.052 0 0 1 .053.007c.08.066.164.132.248.195a.051.051 0 0 1-.004.085 8.254 8.254 0 0 1-1.249.594.05.05 0 0 0-.03.03.052.052 0 0 0 .003.041c.24.465.515.909.817 1.329a.05.05 0 0 0 .056.019 13.235 13.235 0 0 0 4.001-2.02.049.049 0 0 0 .021-.037c.334-3.451-.559-6.449-2.366-9.106a.034.034 0 0 0-.02-.019Z"/>
+              </svg>
+              Send to Discord
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- API Tab -->
+    <div id="api" class="tab-content">
+      <div class="card">
+        <h2 class="card-title" style="margin-bottom: 16px;">API Endpoints</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 24px;">
+          Use these endpoints to integrate with your own systems or test the monitor.
+        </p>
+
+        <div style="display: grid; gap: 16px;">
+          <div class="config-item" style="border: 1px solid var(--border-color); border-radius: 6px; padding: 16px; flex-direction: column; align-items: flex-start; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="status-badge healthy">GET</span>
+              <a href="/api/dashboard" target="_blank" rel="nofollow noopener" class="api-link"><code>/api/dashboard</code></a>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 13px;">Get complete dashboard data including usage statistics</p>
+          </div>
+
+          <div class="config-item" style="border: 1px solid var(--border-color); border-radius: 6px; padding: 16px; flex-direction: column; align-items: flex-start; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="status-badge healthy">GET</span>
+              <a href="/api/check" target="_blank" rel="nofollow noopener" class="api-link"><code>/api/check</code></a>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 13px;">Run usage check. Add <a href="/api/check?notify=true" target="_blank" rel="nofollow noopener" class="api-link"><code>?notify=true</code></a> to send Discord notification</p>
+          </div>
+
+          <div class="config-item" style="border: 1px solid var(--border-color); border-radius: 6px; padding: 16px; flex-direction: column; align-items: flex-start; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="status-badge warning">POST</span>
+              <code>/api/trigger</code>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 13px;">Trigger the workflow manually (use curl or Postman)</p>
+          </div>
+
+          <div class="config-item" style="border: 1px solid var(--border-color); border-radius: 6px; padding: 16px; flex-direction: column; align-items: flex-start; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="status-badge healthy">GET</span>
+              <a href="/api/config" target="_blank" rel="nofollow noopener" class="api-link"><code>/api/config</code></a>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 13px;">Get current configuration and environment status</p>
+          </div>
+
+          <div class="config-item" style="border: 1px solid var(--border-color); border-radius: 6px; padding: 16px; flex-direction: column; align-items: flex-start; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="status-badge warning">POST</span>
+              <code>/api/test-discord</code>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 13px;">Send a test notification to Discord (use curl or Postman)</p>
+          </div>
+
+          <div class="config-item" style="border: 1px solid var(--border-color); border-radius: 6px; padding: 16px; flex-direction: column; align-items: flex-start; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="status-badge healthy">GET</span>
+              <a href="/api/products" target="_blank" rel="nofollow noopener" class="api-link"><code>/api/products</code></a>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 13px;">Get all available products grouped by category</p>
+          </div>
+
+          <div class="config-item" style="border: 1px solid var(--border-color); border-radius: 6px; padding: 16px; flex-direction: column; align-items: flex-start; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="status-badge healthy">GET</span>
+              <a href="/api/discover" target="_blank" rel="nofollow noopener" class="api-link"><code>/api/discover</code></a>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 13px;">Discover available GraphQL Analytics datasets</p>
+          </div>
+
+          <div class="config-item" style="border: 1px solid var(--border-color); border-radius: 6px; padding: 16px; flex-direction: column; align-items: flex-start; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="status-badge healthy">GET</span>
+              <code>/api/status?instanceId=xxx</code>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 13px;">Get workflow instance status (replace xxx with actual ID)</p>
+          </div>
+
+          <div class="config-item" style="border: 1px solid var(--border-color); border-radius: 6px; padding: 16px; flex-direction: column; align-items: flex-start; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="status-badge healthy">GET</span>
+              <a href="/health" target="_blank" rel="nofollow noopener" class="api-link"><code>/health</code></a>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 13px;">Health check endpoint</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Notification Preview Modal -->
+  <div id="preview-modal" class="modal-overlay" style="display: none;" onclick="closePreviewModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-title">Notification Preview</h3>
+        <button class="modal-close" onclick="closePreviewModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="preview-content">
+        <!-- Content will be injected here -->
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="container">
+      <p style="margin-bottom: 8px;">
+        Built with <a href="https://developers.cloudflare.com/workers/" rel="nofollow noopener" target="_blank">Cloudflare Workers</a> & 
+        <a href="https://developers.cloudflare.com/workflows/" rel="nofollow noopener" target="_blank">Workflows</a>
+        | <a href="https://github.com/DavidJKTofan/cf-billing-usage-analytics" rel="noopener" target="_blank">GitHub</a>
+      </p>
+      <p style="font-size: 11px; color: var(--text-secondary); max-width: 600px; margin: 0 auto;">
+        <strong>Disclaimer:</strong> This project is for educational and demonstration purposes only. 
+        Not affiliated with, endorsed by, or officially connected to Cloudflare, Inc. 
+        Use at your own risk.
+      </p>
+    </div>
+  </footer>
+
+  <script>
+    let dashboardData = null;
+    let configData = null;
+    let currentFilters = {
+      eyeballOnly: true,  // Default to visitor-only traffic
+      excludeEdgeWorkers: false,
+      excludeBlocked: false,
+      zoneId: null  // null = All Zones (account-wide)
+    };
+    let displayFilters = {
+      hideNA: true  // Default to hiding N/A products
+    };
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Update filter status indicator on load
+      updateFilterStatus();
+      // Load dashboard first to get zone discovery data, then config
+      await loadDashboard();
+      await loadConfig();
+      // Setup tooltip positioning
+      setupTooltipPositioning();
+    });
+
+    // Setup click-to-open tooltip behavior
+    // Click badge to open, click outside or X to close
+    function setupTooltipPositioning() {
+      let activeTooltip = null;
+
+      // Close any open tooltip
+      function closeActiveTooltip() {
+        if (activeTooltip) {
+          activeTooltip.classList.remove('active');
+          activeTooltip = null;
+        }
+      }
+
+      // Position and show tooltip
+      function openTooltip(tooltipContainer) {
+        // Close any existing tooltip first
+        closeActiveTooltip();
+        
+        const badge = tooltipContainer.querySelector('.confidence-badge');
+        const tooltip = tooltipContainer.querySelector('.tooltip-content');
+        if (!badge || !tooltip) return;
+        
+        // Get badge position
+        const rect = badge.getBoundingClientRect();
+        const tooltipWidth = 300;
+        
+        // Show tooltip temporarily to measure height
+        tooltip.style.visibility = 'hidden';
+        tooltip.style.display = 'block';
+        const tooltipHeight = tooltip.offsetHeight;
+        tooltip.style.display = '';
+        tooltip.style.visibility = '';
+        
+        // Position above the badge, centered
+        let left = rect.left + (rect.width / 2) - (tooltipWidth / 2);
+        let top = rect.top - tooltipHeight - 12;
+        
+        // Keep within viewport bounds
+        const padding = 12;
+        if (left < padding) left = padding;
+        if (left + tooltipWidth > window.innerWidth - padding) {
+          left = window.innerWidth - tooltipWidth - padding;
+        }
+        
+        // If not enough room above, show below
+        if (top < padding) {
+          top = rect.bottom + 12;
+          tooltip.classList.add('tooltip-below');
+        } else {
+          tooltip.classList.remove('tooltip-below');
+        }
+        
+        tooltip.style.left = left + 'px';
+        tooltip.style.top = top + 'px';
+        
+        // Activate tooltip
+        tooltipContainer.classList.add('active');
+        activeTooltip = tooltipContainer;
+      }
+
+      // Handle clicks on confidence badges
+      document.addEventListener('click', (e) => {
+        // Check if clicking on close button
+        const closeBtn = e.target.closest('.tooltip-close');
+        if (closeBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          closeActiveTooltip();
+          return;
+        }
+
+        // Check if clicking on a confidence badge
+        const badge = e.target.closest('.confidence-badge');
+        if (badge) {
+          e.preventDefault();
+          e.stopPropagation();
+          const tooltipContainer = badge.closest('.confidence-tooltip');
+          if (tooltipContainer) {
+            // Toggle: if already open, close it; otherwise open it
+            if (tooltipContainer.classList.contains('active')) {
+              closeActiveTooltip();
+            } else {
+              openTooltip(tooltipContainer);
+            }
+          }
+          return;
+        }
+
+        // Check if clicking inside tooltip content (allow interaction)
+        const tooltipContent = e.target.closest('.tooltip-content');
+        if (tooltipContent) {
+          // Allow clicks inside tooltip (for links, etc.)
+          return;
+        }
+
+        // Clicking outside - close tooltip
+        closeActiveTooltip();
+      });
+
+      // Close on Escape key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closeActiveTooltip();
+        }
+      });
+
+      // Close tooltip on any scroll event (tooltip stays fixed, badge moves away)
+      // Using capture phase to catch scroll events from any scrollable container
+      function handleScroll() {
+        if (activeTooltip) {
+          closeActiveTooltip();
+        }
+      }
+      
+      // Listen on window for main page scroll
+      window.addEventListener('scroll', handleScroll, { passive: true });
+      
+      // Also listen on document with capture to catch scrollable containers
+      document.addEventListener('scroll', handleScroll, { capture: true, passive: true });
+    }
+
+    // Apply display filters (doesn't reload data, just re-renders)
+    function applyDisplayFilters() {
+      displayFilters.hideNA = document.getElementById('filter-hide-na').checked;
+      renderDashboard();
+    }
+
+    /**
+     * Calculate status class based on percentage and thresholds
+     * - healthy: below warning threshold
+     * - warning: between warning and alert (orange)
+     * - alert: between alert and 100% (light red)
+     * - critical: above 100% (bright red)
+     */
+    function getStatusClass(percentUsed, warningThreshold, alertThreshold) {
+      if (percentUsed >= 100) return 'critical';
+      if (percentUsed >= alertThreshold) return 'alert';
+      if (percentUsed >= warningThreshold) return 'warning';
+      return 'healthy';
+    }
+
+    function getStatusText(statusClass) {
+      switch(statusClass) {
+        case 'critical': return 'CRITICAL';
+        case 'alert': return 'ALERT';
+        case 'warning': return 'WARNING';
+        default: return 'HEALTHY';
+      }
+    }
+
+    // Update filter status indicator
+    function updateFilterStatus() {
+      const activeFilters = [];
+      if (currentFilters.zoneId) {
+        const zoneSelect = document.getElementById('filter-zone');
+        const selectedOption = zoneSelect?.options[zoneSelect.selectedIndex];
+        activeFilters.push(`zone: ${selectedOption?.text || currentFilters.zoneId}`);
+      }
+      if (currentFilters.eyeballOnly) activeFilters.push('visitors only');
+      if (currentFilters.excludeEdgeWorkers) activeFilters.push('no edge workers');
+      if (currentFilters.excludeBlocked) activeFilters.push('no 403');
+      
+      const statusEl = document.getElementById('filter-status');
+      if (activeFilters.length > 0) {
+        statusEl.textContent = 'Filters: ' + activeFilters.join(', ');
+        statusEl.style.color = 'var(--cf-orange)';
+      } else {
+        statusEl.textContent = '';
+      }
+    }
+
+    // Populate zone filter dropdown
+    function populateZoneFilter(zones) {
+      const zoneSelect = document.getElementById('filter-zone');
+      if (!zoneSelect) return;
+      
+      // Clear existing options (except first "All Zones")
+      while (zoneSelect.options.length > 1) {
+        zoneSelect.remove(1);
+      }
+      
+      // Add zone options
+      if (zones && zones.length > 0) {
+        zones.forEach(zone => {
+          const option = document.createElement('option');
+          option.value = zone.id;
+          option.textContent = zone.name;
+          zoneSelect.appendChild(option);
+        });
+      }
+      
+      // Restore selected zone if any
+      if (currentFilters.zoneId) {
+        zoneSelect.value = currentFilters.zoneId;
+      }
+    }
+
+    // Tab switching
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      
+      document.querySelector(`.tab[onclick="switchTab('${tabId}')"]`).classList.add('active');
+      document.getElementById(tabId).classList.add('active');
+    }
+
+    // Build query string for filters
+    function buildFilterQuery() {
+      const params = new URLSearchParams();
+      if (currentFilters.zoneId) params.set('zoneId', currentFilters.zoneId);
+      if (currentFilters.eyeballOnly) params.set('eyeballOnly', 'true');
+      if (currentFilters.excludeEdgeWorkers) params.set('excludeEdgeWorkers', 'true');
+      if (currentFilters.excludeBlocked) params.set('excludeBlocked', 'true');
+      return params.toString() ? '?' + params.toString() : '';
+    }
+
+    // Show/hide loading overlay
+    function showLoading(show = true) {
+      const overlay = document.getElementById('usage-loading-overlay');
+      if (show) {
+        overlay.classList.remove('hidden');
+      } else {
+        overlay.classList.add('hidden');
+      }
+    }
+
+    // Apply filters and reload data
+    async function applyFilters() {
+      const zoneSelect = document.getElementById('filter-zone');
+      currentFilters.zoneId = zoneSelect?.value || null;
+      currentFilters.eyeballOnly = document.getElementById('filter-eyeball').checked;
+      currentFilters.excludeEdgeWorkers = document.getElementById('filter-exclude-edgeworkers').checked;
+      currentFilters.excludeBlocked = document.getElementById('filter-exclude-blocked').checked;
+      
+      updateFilterStatus();
+      showLoading(true);
+      
+      // Reload data with filters
+      await loadDashboard();
+    }
+
+    // Load dashboard data
+    async function loadDashboard() {
+      try {
+        const filterQuery = buildFilterQuery();
+        const response = await fetch('/api/dashboard' + filterQuery);
+        dashboardData = await response.json();
+        
+        // Populate zone filter dropdown on first load
+        if (dashboardData.zones?.available) {
+          populateZoneFilter(dashboardData.zones.available);
+        }
+        
+        renderDashboard();
+      } catch (error) {
+        console.error('Failed to load dashboard:', error);
+        document.getElementById('stats-loading').innerHTML = `
+          <div class="alert alert-danger">Failed to load dashboard data: ${error.message}</div>
+        `;
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    // Load config data
+    async function loadConfig() {
+      try {
+        const response = await fetch('/api/config');
+        configData = await response.json();
+        renderConfig();
+        renderProducts();
+      } catch (error) {
+        console.error('Failed to load config:', error);
+      }
+    }
+
+    // Render dashboard
+    function renderDashboard() {
+      if (!dashboardData) return;
+
+      document.getElementById('stats-loading').style.display = 'none';
+      document.getElementById('stats-content').style.display = 'block';
+
+      const usage = dashboardData.usage;
+      const summary = usage?.summary || { alerts: 0, warnings: 0, healthy: 0, errors: 0 };
+
+      // Update billing period display
+      const bp = dashboardData.currentBillingPeriod;
+      const startDate = new Date(bp.start);
+      const timezone = dashboardData.config.timezone || dashboardData.config.billingPeriod?.timezone || 'UTC';
+      const startDay = dashboardData.config.billingPeriod?.startDay || 1;
+      
+      const ordinal = (n) => {
+        const s = ['th', 'st', 'nd', 'rd'];
+        const v = n % 100;
+        return n + (s[(v - 20) % 10] || s[v] || s[0]);
+      };
+      
+      document.getElementById('billing-period-display').textContent = 
+        `${ordinal(startDay)} of the month (${startDate.toLocaleDateString()})`;
+      document.getElementById('timezone-display').textContent = timezone;
+
+      // Sync filter checkboxes with current state
+      document.getElementById('filter-eyeball').checked = dashboardData.filters?.eyeballOnly || false;
+      document.getElementById('filter-exclude-edgeworkers').checked = dashboardData.filters?.excludeEdgeWorkers || false;
+      document.getElementById('filter-exclude-blocked').checked = dashboardData.filters?.excludeBlocked || false;
+
+      // Calculate critical count (>100%) - exclude disabled products
+      const results = usage?.results || [];
+      const enabledResults = results.filter(r => r.status !== 'disabled' && r.enabled !== false);
+      const criticalCount = enabledResults.filter(r => !r.error && r.percentUsed >= 100).length;
+      const alertCount = enabledResults.filter(r => !r.error && r.percentUsed >= dashboardData.config.alertThresholdPercent && r.percentUsed < 100).length;
+      const disabledProductCount = summary.disabled || results.filter(r => r.status === 'disabled' || r.enabled === false).length;
+      
+      // Stats grid
+      document.getElementById('stats-grid').innerHTML = `
+        <div class="stat-card">
+          <div class="stat-label">Critical</div>
+          <div class="stat-value" style="color: #ff2d2d;">${criticalCount}</div>
+          <div style="color: var(--text-secondary); font-size: 13px;">Above 100%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Alerts</div>
+          <div class="stat-value alert">${alertCount}</div>
+          <div style="color: var(--text-secondary); font-size: 13px;">${dashboardData.config.alertThresholdPercent}% - 100%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Warnings</div>
+          <div class="stat-value warning">${summary.warnings}</div>
+          <div style="color: var(--text-secondary); font-size: 13px;">${dashboardData.config.warningThresholdPercent}% - ${dashboardData.config.alertThresholdPercent}%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Healthy</div>
+          <div class="stat-value healthy">${summary.healthy}</div>
+          <div style="color: var(--text-secondary); font-size: 13px;">Below ${dashboardData.config.warningThresholdPercent}%</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Products</div>
+          <div class="stat-value" style="color: var(--info);">${summary.enabled || enabledResults.length}</div>
+          <div style="color: var(--text-secondary); font-size: 13px;">${disabledProductCount} disabled</div>
+        </div>
+      `;
+
+      // Last updated with timezone
+      const lastUpdated = new Date(dashboardData.timestamp);
+      document.getElementById('last-updated').textContent = 
+        `Last updated: ${lastUpdated.toLocaleString()} (${Intl.DateTimeFormat().resolvedOptions().timeZone})`;
+
+      // Alerts banner with color-coded messages
+      const alertsHtml = [];
+      if (criticalCount > 0) {
+        alertsHtml.push(`<div class="alert" style="background: rgba(255, 45, 45, 0.15); border: 1px solid rgba(255, 45, 45, 0.4); color: #ff2d2d;">${criticalCount} product(s) have EXCEEDED their contract limits (>100%)!</div>`);
+      }
+      if (alertCount > 0) {
+        alertsHtml.push(`<div class="alert alert-danger">${alertCount} product(s) are above ${dashboardData.config.alertThresholdPercent}% of their limits.</div>`);
+      }
+      if (summary.warnings > 0) {
+        alertsHtml.push(`<div class="alert alert-warning">${summary.warnings} product(s) are approaching their limits (>${dashboardData.config.warningThresholdPercent}%).</div>`);
+      }
+      if (!dashboardData.environment.configured) {
+        alertsHtml.push(`<div class="alert alert-warning">Environment not fully configured. Check the Configuration tab.</div>`);
+      }
+      // Show zone filter info
+      if (currentFilters.zoneId && dashboardData.zones?.selected) {
+        const zoneName = dashboardData.zones.available?.find(z => z.id === currentFilters.zoneId)?.name || currentFilters.zoneId;
+        alertsHtml.push(`<div class="alert" style="background: rgba(88, 166, 255, 0.1); border: 1px solid rgba(88, 166, 255, 0.3); color: var(--info);">Viewing zone-scoped products for: <strong>${zoneName}</strong>. Account-scoped products are hidden.</div>`);
+      }
+      // Show zone discovery info (only when not filtering by zone)
+      if (!currentFilters.zoneId && dashboardData.zones?.autoDiscovered) {
+        alertsHtml.push(`<div class="alert" style="background: rgba(88, 166, 255, 0.1); border: 1px solid rgba(88, 166, 255, 0.3); color: var(--info);">Zones auto-discovered: ${dashboardData.zones.total} active zone(s) found.</div>`);
+      }
+      if (dashboardData.environment.zonesDiscoveryError) {
+        alertsHtml.push(`<div class="alert alert-warning">Zone discovery error: ${dashboardData.environment.zonesDiscoveryError}. Zone-scoped products may not work.</div>`);
+      }
+      document.getElementById('usage-alerts').innerHTML = alertsHtml.join('');
+
+      // Usage by category
+      if (usage?.results) {
+        renderUsageByCategory(usage.results);
+      } else {
+        document.getElementById('usage-categories-container').innerHTML = `
+          <div style="text-align: center; color: var(--text-secondary); padding: 40px;">
+            ${usage?.error || 'No usage data available. Configure environment variables to enable.'}
+          </div>
+        `;
+      }
+    }
+
+    // Render usage results grouped by category
+    function renderUsageByCategory(results) {
+      const categoryNames = dashboardData.categoryNames || {
+        network: 'Application Services',
+        security: 'Security',
+        compute: 'Compute',
+        storage: 'Storage',
+        ai: 'AI & ML',
+        connectivity: 'Zero Trust & Connectivity',
+        media: 'Media',
+        platform: 'Platform Services'
+      };
+      
+      const categoryOrder = dashboardData.categoryOrder || ['network', 'security', 'compute', 'storage', 'ai', 'connectivity', 'media', 'platform'];
+      
+      // Helper functions
+      const isNA = (r) => r.status === 'disabled' || r.status === 'error' || (r.currentUsage === 0 && r.error);
+      const isDisabled = (r) => r.status === 'disabled' || r.enabled === false;
+      
+      // Filter and group by category
+      let filteredResults = results;
+      let naCount = results.filter(isNA).length;
+      let disabledCount = results.filter(isDisabled).length;
+      
+      if (displayFilters.hideNA) {
+        filteredResults = results.filter(r => !isNA(r));
+      }
+      
+      // Group by category
+      const byCategory = {};
+      for (const r of filteredResults) {
+        const cat = r.category || 'platform';
+        if (!byCategory[cat]) byCategory[cat] = [];
+        byCategory[cat].push(r);
+      }
+      
+      // Sort products within each category by percent used (descending)
+      for (const cat of Object.keys(byCategory)) {
+        byCategory[cat].sort((a, b) => {
+          const aNA = isNA(a);
+          const bNA = isNA(b);
+          if (aNA && !bNA) return 1;
+          if (!aNA && bNA) return -1;
+          return b.percentUsed - a.percentUsed;
+        });
+      }
+      
+      // Calculate category stats
+      const categoryStats = {};
+      for (const [cat, products] of Object.entries(byCategory)) {
+        categoryStats[cat] = {
+          critical: products.filter(r => r.status === 'critical').length,
+          alert: products.filter(r => r.status === 'alert').length,
+          warning: products.filter(r => r.status === 'warning').length,
+          healthy: products.filter(r => r.status === 'healthy').length,
+          total: products.length
+        };
+      }
+      
+      // Render each category
+      let html = '';
+      for (const cat of categoryOrder) {
+        if (!byCategory[cat] || byCategory[cat].length === 0) continue;
+        
+        const stats = categoryStats[cat];
+        const products = byCategory[cat];
+        const categoryName = categoryNames[cat] || cat;
+        
+        // Auto-collapse categories with only healthy products if there are alerts elsewhere
+        const hasGlobalAlerts = Object.values(categoryStats).some(s => s.critical > 0 || s.alert > 0);
+        const categoryHasIssues = stats.critical > 0 || stats.alert > 0 || stats.warning > 0;
+        const shouldCollapse = hasGlobalAlerts && !categoryHasIssues;
+        
+        html += `
+          <div class="category-section" data-category="${cat}">
+            <div class="category-header ${shouldCollapse ? 'collapsed' : ''}" onclick="toggleCategory('${cat}')">
+              <div class="category-toggle">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+                  <path d="M4 2L8 6L4 10" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                </svg>
+              </div>
+              <span class="category-name">${categoryName}</span>
+              <div class="category-stats">
+                ${stats.critical > 0 ? `<span class="category-stat critical">${stats.critical} critical</span>` : ''}
+                ${stats.alert > 0 ? `<span class="category-stat alert">${stats.alert} alert</span>` : ''}
+                ${stats.warning > 0 ? `<span class="category-stat warning">${stats.warning} warning</span>` : ''}
+                ${stats.healthy > 0 ? `<span class="category-stat healthy">${stats.healthy} OK</span>` : ''}
+              </div>
+            </div>
+            <div class="category-products ${shouldCollapse ? 'collapsed' : ''}">
+              <table class="usage-table">
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Usage</th>
+                    <th>Limit</th>
+                    <th style="width: 200px;">Progress</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${products.map(r => renderProductRow(r, isNA, isDisabled)).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      }
+      
+      // Add info about hidden products if any
+      if (displayFilters.hideNA && naCount > 0) {
+        const disabledText = disabledCount > 0 ? ` (${disabledCount} disabled)` : '';
+        html += `<div style="text-align: center; color: var(--text-secondary); font-size: 13px; padding: 12px;">
+          ${naCount} product(s) hidden${disabledText}. Uncheck "Hide N/A products" to show all.
+        </div>`;
+      }
+      
+      document.getElementById('usage-categories-container').innerHTML = html;
+    }
+
+    // Format large numbers for display
+    function formatNumber(num) {
+      if (num >= 1000000000) return (num / 1000000000).toFixed(2) + 'B';
+      if (num >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+      if (num >= 1000) return (num / 1000).toFixed(2) + 'K';
+      return num.toFixed(0);
+    }
+
+    // Render confidence badge with click-to-open tooltip
+    function renderConfidenceBadge(confidence) {
+      if (!confidence || !confidence.isValid) return '';
+      
+      // Cap at 99% - 100% confidence is impossible for sampled data
+      const percent = Math.min(99, confidence.confidencePercent || 0);
+      let badgeClass = 'high';
+      let badgeText = 'High';
+      
+      if (percent < 90) {
+        badgeClass = 'low';
+        badgeText = 'Low';
+      } else if (percent < 97) {
+        badgeClass = 'medium';
+        badgeText = 'Med';
+      }
+      
+      const level = ((confidence.level || 0.95) * 100).toFixed(0);
+      const halfRange = formatNumber((confidence.upper - confidence.lower) / 2);
+      
+      return `
+        <div class="confidence-tooltip" style="display: inline-block; margin-left: 6px;">
+          <span class="confidence-badge ${badgeClass}" role="button" tabindex="0" aria-label="Click to view confidence interval details">
+            <svg viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/>
+            </svg>
+            ${percent.toFixed(0)}%
+          </span>
+          <div class="tooltip-content">
+            <div class="tooltip-header">
+              <span class="tooltip-title">${level}% Confidence Interval</span>
+              <button class="tooltip-close" aria-label="Close">&times;</button>
+            </div>
+            <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.5;">
+              Based on <strong style="color: var(--text-primary);">${formatNumber(confidence.sampleSize)}</strong> samples, 
+              the true value is ${level}% likely between 
+              <strong style="color: var(--text-primary);">${formatNumber(confidence.lower)}</strong> and 
+              <strong style="color: var(--text-primary);">${formatNumber(confidence.upper)}</strong>.
+            </div>
+            <div class="tooltip-row">
+              <span class="tooltip-label">Estimate</span>
+              <span class="tooltip-value">${formatNumber(confidence.estimate)}</span>
+            </div>
+            <div class="tooltip-row">
+              <span class="tooltip-label">Range</span>
+              <span class="tooltip-value">${formatNumber(confidence.lower)} – ${formatNumber(confidence.upper)}</span>
+            </div>
+            <div class="tooltip-row">
+              <span class="tooltip-label">Margin of error</span>
+              <span class="tooltip-value">±${halfRange}</span>
+            </div>
+            <div class="tooltip-row">
+              <span class="tooltip-label">Sample size</span>
+              <span class="tooltip-value">${formatNumber(confidence.sampleSize)}</span>
+            </div>
+            <div class="tooltip-row" style="border-bottom: none;">
+              <span class="tooltip-label">Accuracy</span>
+              <span class="tooltip-value" style="color: ${badgeClass === 'high' ? 'var(--success)' : badgeClass === 'medium' ? 'var(--warning)' : 'var(--danger)'};">${badgeText} (${percent.toFixed(1)}%)</span>
+            </div>
+            <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border-color); text-align: center;">
+              <a href="https://developers.cloudflare.com/analytics/graphql-api/features/confidence-intervals/" 
+                 target="_blank" rel="nofollow noopener" 
+                 style="color: var(--info); font-size: 12px; text-decoration: none;">
+                Learn more about confidence intervals →
+              </a>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Render a single product row
+    function renderProductRow(r, isNA, isDisabled) {
+      const isNAProduct = isNA(r);
+      const isDisabledProduct = isDisabled(r);
+      const isUnlimited = r.unlimited || r.limitFormatted === 'Unlimited';
+      const statusClass = r.status;
+      const statusText = isDisabledProduct ? 'DISABLED' : (isNAProduct ? 'N/A' : (isUnlimited ? 'INCLUDED' : getStatusText(statusClass)));
+      const usageText = isNAProduct ? '-' : r.currentUsageFormatted;
+      // For unlimited products, show usage count but no percentage
+      const percentText = isNAProduct ? '-' : (isUnlimited ? '-' : `${r.percentUsed.toFixed(1)}%`);
+      const progressWidth = isNAProduct || isUnlimited ? 0 : Math.min(r.percentUsed, 150);
+      
+      // Render confidence badge if available
+      const confidenceBadge = (!isNAProduct && !isDisabledProduct && r.confidence) 
+        ? renderConfidenceBadge(r.confidence) 
+        : '';
+      
+      let displayName = r.productName;
+      if (currentFilters.zoneId) {
+        displayName = displayName.replace(' (Account)', '').replace(' (Zone)', '');
+      }
+      
+      return `
+        <tr style="${isNAProduct ? 'opacity: 0.5;' : ''}">
+          <td>
+            <strong>${displayName}</strong>
+            ${r.scope === 'zone' && !currentFilters.zoneId ? '<span style="font-size: 11px; color: var(--text-secondary); margin-left: 4px;">(zone)</span>' : ''}
+            ${isUnlimited ? '<span style="font-size: 11px; color: var(--success); margin-left: 4px;">(free)</span>' : ''}
+            ${r.note ? `<span class="filter-help" title="${r.note}" style="margin-left: 4px; cursor: help;">(i)</span>` : ''}
+            ${!isDisabledProduct && isNAProduct && r.error ? `<span class="filter-help" title="Error: ${r.error}" style="margin-left: 4px; cursor: help; color: var(--danger);">(!)</span>` : ''}
+          </td>
+          <td>
+            ${usageText}
+            ${confidenceBadge}
+          </td>
+          <td>${r.limitFormatted}</td>
+          <td>
+            <div class="progress-container">
+              <div class="progress-header">
+                <span>${percentText}</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-fill ${isUnlimited ? 'healthy' : statusClass}" style="width: ${progressWidth}%"></div>
+              </div>
+            </div>
+          </td>
+          <td><span class="status-badge ${isUnlimited ? 'healthy' : statusClass}">${statusText}</span></td>
+        </tr>
+      `;
+    }
+
+    // Toggle category collapse/expand
+    function toggleCategory(category) {
+      const section = document.querySelector(`.category-section[data-category="${category}"]`);
+      if (!section) return;
+      
+      const header = section.querySelector('.category-header');
+      const products = section.querySelector('.category-products');
+      
+      header.classList.toggle('collapsed');
+      products.classList.toggle('collapsed');
+    }
+
+    // Render config
+    function renderConfig() {
+      if (!configData) return;
+
+      const env = configData.environment;
+      
+      // Get zone info from dashboard data if available (it has auto-discovered zones)
+      const availableZones = dashboardData?.zones?.available || [];
+      const zonesAutoDiscovered = dashboardData?.zones?.autoDiscovered || env.zonesAutoDiscovered;
+      const totalZones = availableZones.length || env.zoneTagsConfigured || env.zoneCount || 0;
+      
+      // Build zone display text - prefer dashboard data which has actual discovered zones
+      let zoneText;
+      if (availableZones.length > 0) {
+        zoneText = `${availableZones.length} zone(s)`;
+        if (zonesAutoDiscovered) {
+          zoneText += ' (auto-discovered)';
+        }
+      } else if (zonesAutoDiscovered) {
+        zoneText = `${totalZones} zone(s) (auto-discovered)`;
+      } else {
+        zoneText = `${totalZones} zone(s)`;
+      }
+      
+      document.getElementById('env-status').innerHTML = `
+        <div class="config-item">
+          <span class="config-label">API Token</span>
+          <span class="config-value ${env.hasApiToken ? 'success' : 'danger'}">${env.hasApiToken ? 'Configured' : 'Missing'}</span>
+        </div>
+        <div class="config-item">
+          <span class="config-label">Account ID</span>
+          <span class="config-value ${env.hasAccountId ? 'success' : 'danger'}">${env.hasAccountId ? 'Configured' : 'Missing'}</span>
+        </div>
+        <div class="config-item">
+          <span class="config-label">Zones</span>
+          <span class="config-value ${totalZones > 0 ? 'success' : ''}">${zoneText}</span>
+        </div>
+        <div class="config-item">
+          <span class="config-label">Discord Webhook</span>
+          <span class="config-value ${env.hasDiscordWebhook ? 'success' : 'danger'}">${env.hasDiscordWebhook ? 'Configured' : 'Missing'}</span>
+        </div>
+      `;
+
+      document.getElementById('alert-settings').innerHTML = `
+        <div class="config-item">
+          <span class="config-label">Alert Threshold</span>
+          <span class="config-value">${configData.alertThresholdPercent}%</span>
+        </div>
+        <div class="config-item">
+          <span class="config-label">Warning Threshold</span>
+          <span class="config-value">${configData.warningThresholdPercent}%</span>
+        </div>
+      `;
+
+      const bp = configData.currentBillingPeriod;
+      document.getElementById('billing-period').innerHTML = `
+        <div class="config-item">
+          <span class="config-label">Start Day</span>
+          <span class="config-value">${configData.billingPeriod.startDay}</span>
+        </div>
+        <div class="config-item">
+          <span class="config-label">Current Period</span>
+          <span class="config-value">${new Date(bp.start).toLocaleDateString()} - ${new Date(bp.end).toLocaleDateString()}</span>
+        </div>
+      `;
+      
+      // Render contract caps
+      const contractCaps = configData.contractCaps || [];
+      if (contractCaps.length > 0) {
+        document.getElementById('contract-caps').innerHTML = contractCaps.map(cap => `
+          <div class="config-item">
+            <span class="config-label">${cap.productName}</span>
+            <span class="config-value" style="color: var(--cf-orange);">${cap.limitFormatted}</span>
+          </div>
+        `).join('');
+      } else {
+        document.getElementById('contract-caps').innerHTML = `
+          <div style="color: var(--text-secondary); font-size: 13px;">
+            No custom contract caps configured. Using default limits for all products.
+          </div>
+        `;
+      }
+      
+      // Render notifications config with cron schedule
+      const cronSchedule = configData.cronSchedule || '0 */6 * * *';
+      const cronDescription = configData.cronDescription || 'Every 6 hours';
+      const warningThreshold = configData.warningThresholdPercent || 75;
+      const alertThreshold = configData.alertThresholdPercent || 90;
+      
+      document.getElementById('notifications-config').innerHTML = `
+        <div class="info-banner" style="margin-bottom: 16px;">
+          <strong>When do notifications trigger?</strong><br>
+          The cron job runs <strong>${cronDescription}</strong> (<code>${cronSchedule}</code>) and sends a Discord notification <strong>only if</strong> any product exceeds the warning threshold (${warningThreshold}%) or alert threshold (${alertThreshold}%). 
+          <strong>No notification is sent when all products are healthy.</strong>
+        </div>
+        <div style="background: var(--bg-tertiary); border-radius: 6px; padding: 12px; margin-bottom: 16px; font-size: 13px;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr style="color: var(--text-secondary);">
+              <td style="padding: 4px 8px;">All products &lt; ${warningThreshold}%</td>
+              <td style="padding: 4px 8px; text-align: right;"><span style="color: var(--text-secondary);">No notification</span></td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 8px;">Any product ${warningThreshold}% - ${alertThreshold - 1}%</td>
+              <td style="padding: 4px 8px; text-align: right;"><span style="color: var(--warning);">Warning notification</span></td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 8px;">Any product &ge; ${alertThreshold}%</td>
+              <td style="padding: 4px 8px; text-align: right;"><span style="color: var(--danger);">Alert notification</span></td>
+            </tr>
+          </table>
+        </div>
+        <p style="color: var(--text-secondary); margin-bottom: 0;">
+          Preview what a notification looks like or send a test to Discord.
+        </p>
+      `;
+    }
+
+    // Render products
+    function renderProducts() {
+      if (!configData) return;
+
+      // Sort products alphabetically by name
+      const sortedProducts = [...configData.products].sort((a, b) => 
+        a.name.localeCompare(b.name)
+      );
+
+      const rows = sortedProducts.map(p => {
+        return `
+          <tr style="${!p.enabled ? 'opacity: 0.5;' : ''}">
+            <td><strong>${p.name}</strong></td>
+            <td><code style="font-size: 12px;">${p.dataset || 'N/A'}</code></td>
+            <td>${p.scope || 'N/A'}</td>
+            <td>${p.limitFormatted || 'N/A'}</td>
+            <td><span class="status-badge ${p.enabled ? 'healthy' : 'disabled'}">${p.enabled ? 'Enabled' : 'Disabled'}</span></td>
+          </tr>
+        `;
+      }).join('');
+      document.getElementById('products-table-body').innerHTML = rows || `
+        <tr><td colspan="5" style="text-align: center; color: var(--text-secondary);">
+          No products configured
+        </td></tr>
+      `;
+    }
+
+    // Refresh data
+    async function refreshData() {
+      showToast('Refreshing data...', 'info');
+      await Promise.all([loadDashboard(), loadConfig()]);
+      showToast('Data refreshed!', 'success');
+    }
+
+    // Trigger workflow
+    async function triggerWorkflow() {
+      try {
+        const response = await fetch('/api/trigger', { method: 'POST' });
+        const data = await response.json();
+        showToast(`Workflow triggered! Instance: ${data.instanceId.slice(0, 8)}...`, 'success');
+        setTimeout(refreshData, 2000);
+      } catch (error) {
+        showToast('Failed to trigger workflow: ' + error.message, 'error');
+      }
+    }
+
+    // Test Discord
+    async function testDiscord() {
+      try {
+        const response = await fetch('/api/test-discord', { method: 'POST' });
+        const data = await response.json();
+        if (data.success) {
+          showToast('Test notification sent to Discord!', 'success');
+        } else {
+          showToast('Failed: ' + (data.error || 'Unknown error'), 'error');
+        }
+      } catch (error) {
+        showToast('Failed to send test: ' + error.message, 'error');
+      }
+    }
+
+    // Toast notification
+    function showToast(message, type = 'info') {
+      const existing = document.querySelector('.toast');
+      if (existing) existing.remove();
+
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    // Preview notification modal
+    function previewNotification() {
+      if (!dashboardData || !dashboardData.usage || !dashboardData.usage.results) {
+        showToast('No usage data available. Load the dashboard first.', 'error');
+        return;
+      }
+
+      const usage = dashboardData.usage;
+      const summary = usage.summary;
+      const results = usage.results;
+      const bp = dashboardData.currentBillingPeriod;
+
+      // Determine overall status
+      let overallStatus = 'healthy';
+      let statusEmoji = '✅';
+      let statusText = 'All systems healthy';
+      
+      if (summary.alerts > 0) {
+        overallStatus = 'alert';
+        statusEmoji = '🚨';
+        statusText = `${summary.alerts} product(s) exceeded alert threshold!`;
+      } else if (summary.warnings > 0) {
+        overallStatus = 'warning';
+        statusEmoji = '⚠️';
+        statusText = `${summary.warnings} product(s) approaching limits`;
+      }
+
+      // Build embed content
+      let embedsHtml = '';
+
+      // Summary embed
+      embedsHtml += `
+        <div class="discord-embed ${overallStatus}">
+          <div class="discord-embed-title">${statusEmoji} Usage Monitor Report</div>
+          <div class="discord-embed-field">
+            <div class="discord-embed-field-name">Status</div>
+            <div class="discord-embed-field-value">${statusText}</div>
+          </div>
+          <div class="discord-embed-field">
+            <div class="discord-embed-field-name">Billing Period</div>
+            <div class="discord-embed-field-value">${new Date(bp.start).toLocaleDateString()} - ${new Date(bp.end).toLocaleDateString()}</div>
+          </div>
+          <div class="discord-embed-field">
+            <div class="discord-embed-field-name">Summary</div>
+            <div class="discord-embed-field-value">
+              🔴 Alerts: ${summary.alerts} | 🟡 Warnings: ${summary.warnings} | 🟢 Healthy: ${summary.healthy}
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Alert items
+      const alertItems = results.filter(r => r.status === 'alert');
+      if (alertItems.length > 0) {
+        embedsHtml += `<div class="discord-embed alert">
+          <div class="discord-embed-title">🚨 Alert - Over ${dashboardData.config.alertThresholdPercent}%</div>`;
+        alertItems.forEach(item => {
+          embedsHtml += `
+            <div class="discord-embed-field">
+              <div class="discord-embed-field-name">${item.productName}</div>
+              <div class="discord-embed-field-value">${item.currentUsageFormatted} / ${item.limitFormatted} (${item.percentUsed.toFixed(1)}%)</div>
+            </div>`;
+        });
+        embedsHtml += `</div>`;
+      }
+
+      // Warning items
+      const warningItems = results.filter(r => r.status === 'warning');
+      if (warningItems.length > 0) {
+        embedsHtml += `<div class="discord-embed warning">
+          <div class="discord-embed-title">⚠️ Warning - Over ${dashboardData.config.warningThresholdPercent}%</div>`;
+        warningItems.forEach(item => {
+          embedsHtml += `
+            <div class="discord-embed-field">
+              <div class="discord-embed-field-name">${item.productName}</div>
+              <div class="discord-embed-field-value">${item.currentUsageFormatted} / ${item.limitFormatted} (${item.percentUsed.toFixed(1)}%)</div>
+            </div>`;
+        });
+        embedsHtml += `</div>`;
+      }
+
+      // Healthy items (show top 5)
+      const healthyItems = results.filter(r => r.status === 'healthy').slice(0, 5);
+      if (healthyItems.length > 0) {
+        embedsHtml += `<div class="discord-embed healthy">
+          <div class="discord-embed-title">✅ Healthy Products (Top 5 by usage)</div>`;
+        healthyItems.forEach(item => {
+          embedsHtml += `
+            <div class="discord-embed-field">
+              <div class="discord-embed-field-name">${item.productName}</div>
+              <div class="discord-embed-field-value">${item.currentUsageFormatted} / ${item.limitFormatted} (${item.percentUsed.toFixed(1)}%)</div>
+            </div>`;
+        });
+        embedsHtml += `</div>`;
+      }
+
+      // Footer note
+      embedsHtml += `
+        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-color);">
+          <strong>Note:</strong> This is a preview of what would be sent to Discord. 
+          The actual notification is only sent when alerts or warnings are detected, 
+          or when manually triggered via the workflow.
+        </div>
+      `;
+
+      document.getElementById('preview-content').innerHTML = embedsHtml;
+      document.getElementById('preview-modal').style.display = 'flex';
+    }
+
+    // Close preview modal
+    function closePreviewModal(event) {
+      if (!event || event.target === document.getElementById('preview-modal')) {
+        document.getElementById('preview-modal').style.display = 'none';
+      }
+    }
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closePreviewModal();
+    });
+  </script>
+</body>
+</html>
