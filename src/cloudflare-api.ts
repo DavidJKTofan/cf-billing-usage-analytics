@@ -128,15 +128,51 @@ export async function discoverZones(apiToken: string, accountId: string): Promis
 }
 
 /**
- * Get a single zone by ID
- *
- * @param apiToken - Cloudflare API token
- * @param zoneId - Zone ID
- * @returns Zone information or null if not found
+ * Zero Trust user information
  */
-export async function getZone(apiToken: string, zoneId: string): Promise<Zone | null> {
+export interface ZeroTrustUser {
+	id: string;
+	uid: string;
+	name: string;
+	email: string;
+	access_seat: boolean;
+	gateway_seat: boolean;
+	active_device_count: number;
+	created_at: string;
+	updated_at: string;
+	last_successful_login: string | null;
+	seat_uid: string | null;
+}
+
+/**
+ * Zero Trust seats summary
+ */
+export interface ZeroTrustSeats {
+	totalUsers: number;
+	accessSeats: number;
+	gatewaySeats: number;
+	activeSeats: number; // Users with either access_seat or gateway_seat
+	error?: string;
+	durationMs: number;
+}
+
+/**
+ * Fetch Zero Trust users and calculate seat usage
+ *
+ * @param apiToken - Cloudflare API token with Access:Read permission
+ * @param accountId - Cloudflare account ID
+ * @returns Seat usage summary
+ */
+export async function getZeroTrustSeats(apiToken: string, accountId: string): Promise<ZeroTrustSeats> {
+	const startTime = Date.now();
+
 	try {
-		const response = await fetch(`${CLOUDFLARE_API_BASE}/zones/${zoneId}`, {
+		// Fetch first page to get total count (we just need the count, not all users)
+		const url = new URL(`${CLOUDFLARE_API_BASE}/accounts/${accountId}/access/users`);
+		url.searchParams.set('per_page', '1000'); // Max per page
+		url.searchParams.set('page', '1');
+
+		const response = await fetch(url.toString(), {
 			headers: {
 				Authorization: `Bearer ${apiToken}`,
 				'Content-Type': 'application/json',
@@ -144,17 +180,71 @@ export async function getZone(apiToken: string, zoneId: string): Promise<Zone | 
 		});
 
 		if (!response.ok) {
-			return null;
+			const errorText = await response.text();
+			throw new Error(`API request failed: ${response.status} - ${errorText}`);
 		}
 
-		const data = (await response.json()) as CloudflareApiResponse<Zone>;
+		const data = (await response.json()) as CloudflareApiResponse<ZeroTrustUser[]>;
 
 		if (!data.success) {
-			return null;
+			const errorMessages = data.errors.map((e) => e.message).join(', ');
+			throw new Error(`API error: ${errorMessages}`);
 		}
 
-		return data.result;
-	} catch {
-		return null;
+		// Count seats from the users we got
+		let accessSeats = 0;
+		let gatewaySeats = 0;
+		let activeSeats = 0;
+		const allUsers: ZeroTrustUser[] = [...data.result];
+
+		// If there are more pages, fetch them all
+		const resultInfo = data.result_info;
+		if (resultInfo && resultInfo.total_pages > 1) {
+			for (let page = 2; page <= resultInfo.total_pages; page++) {
+				url.searchParams.set('page', page.toString());
+				const pageResponse = await fetch(url.toString(), {
+					headers: {
+						Authorization: `Bearer ${apiToken}`,
+						'Content-Type': 'application/json',
+					},
+				});
+
+				if (pageResponse.ok) {
+					const pageData = (await pageResponse.json()) as CloudflareApiResponse<ZeroTrustUser[]>;
+					if (pageData.success) {
+						allUsers.push(...pageData.result);
+					}
+				}
+
+				// Small delay to avoid rate limiting
+				await new Promise((resolve) => setTimeout(resolve, 50));
+			}
+		}
+
+		// Count seat types
+		for (const user of allUsers) {
+			if (user.access_seat) accessSeats++;
+			if (user.gateway_seat) gatewaySeats++;
+			if (user.access_seat || user.gateway_seat) activeSeats++;
+		}
+
+		return {
+			totalUsers: resultInfo?.total_count ?? allUsers.length,
+			accessSeats,
+			gatewaySeats,
+			activeSeats,
+			durationMs: Date.now() - startTime,
+		};
+	} catch (error) {
+		return {
+			totalUsers: 0,
+			accessSeats: 0,
+			gatewaySeats: 0,
+			activeSeats: 0,
+			error: error instanceof Error ? error.message : String(error),
+			durationMs: Date.now() - startTime,
+		};
 	}
 }
+
+

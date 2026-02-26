@@ -1,7 +1,8 @@
 /**
  * Connectivity Products
  *
- * Cloudflare Tunnels, Gateway, Access, Browser Isolation, WARP (Zero Trust)
+ * Cloudflare Tunnels, Gateway, Access, Browser Isolation, WARP (Zero Trust),
+ * Magic Firewall (included with Magic Transit/WAN)
  */
 
 import type { ProductDefinition } from './types';
@@ -138,5 +139,22 @@ export const CONNECTIVITY_PRODUCTS: ProductDefinition[] = [
 		enabledByDefault: false, // Limited data retention (~7 days) - can't query full billing period
 		docsUrl: 'https://developers.cloudflare.com/cloudflare-one/policies/access/',
 		note: 'Limited to ~7 day data retention. Cannot query full billing period.',
+	},
+	// Magic Firewall - Included with Magic Transit/WAN
+	{
+		id: 'magic_firewall_packets',
+		name: 'Magic Firewall Packets',
+		category: 'connectivity',
+		description: 'Packets processed by Magic Firewall (included with Magic Transit/WAN)',
+		defaultLimit: 0,
+		unit: 'packets',
+		dataset: 'magicFirewallNetworkAnalyticsAdaptiveGroups',
+		field: 'packets',
+		aggregation: 'sum',
+		scope: 'account',
+		enabledByDefault: true,
+		unlimited: true,
+		docsUrl: 'https://developers.cloudflare.com/magic-firewall/',
+		note: 'Included with Magic Transit/WAN. No separate charge for Magic Firewall packet processing.',
 	},
 ];

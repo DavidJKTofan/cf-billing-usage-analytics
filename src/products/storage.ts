@@ -1,7 +1,7 @@
 /**
  * Storage Products
  *
- * R2, KV, D1
+ * R2, KV, D1, Durable Objects
  */
 
 import type { ProductDefinition } from './types';
@@ -187,5 +187,52 @@ export const STORAGE_PRODUCTS: ProductDefinition[] = [
 		enabledByDefault: true,
 		docsUrl: 'https://developers.cloudflare.com/d1/',
 		note: 'See developers.cloudflare.com/d1/platform/pricing for details.',
+	},
+	// Durable Objects
+	{
+		id: 'durable_objects_requests',
+		name: 'Durable Objects Requests',
+		category: 'storage',
+		description: 'Total requests to Durable Objects',
+		defaultLimit: 1_000_000,
+		unit: 'requests',
+		dataset: 'durableObjectsInvocationsAdaptiveGroups',
+		field: 'requests',
+		aggregation: 'sum',
+		scope: 'account',
+		enabledByDefault: true,
+		docsUrl: 'https://developers.cloudflare.com/durable-objects/',
+		note: 'See developers.cloudflare.com/durable-objects/platform/pricing for details.',
+	},
+	{
+		id: 'durable_objects_storage',
+		name: 'Durable Objects Storage',
+		category: 'storage',
+		description: 'Storage used by Durable Objects (SQLite)',
+		defaultLimit: 5 * 1024 * 1024 * 1024,
+		unit: 'bytes',
+		dataset: 'durableObjectsStorageGroups',
+		field: 'storedBytes',
+		aggregation: 'max', // DO storage uses max aggregation like R2
+		scope: 'account',
+		filterField: 'date', // This dataset uses date filter, not datetime
+		enabledByDefault: true,
+		docsUrl: 'https://developers.cloudflare.com/durable-objects/',
+		note: 'See developers.cloudflare.com/durable-objects/platform/pricing for details.',
+	},
+	{
+		id: 'durable_objects_subrequests',
+		name: 'Durable Objects Subrequests',
+		category: 'storage',
+		description: 'Subrequests made by Durable Objects',
+		defaultLimit: 10_000_000,
+		unit: 'requests',
+		dataset: 'durableObjectsSubrequestsAdaptiveGroups',
+		field: '',
+		aggregation: 'count',
+		scope: 'account',
+		enabledByDefault: false, // Dataset not available on most accounts
+		docsUrl: 'https://developers.cloudflare.com/durable-objects/',
+		note: 'Subrequests made from Durable Objects. Dataset may not be available on all accounts.',
 	},
 ];

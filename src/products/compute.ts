@@ -1,7 +1,7 @@
 /**
  * Compute Products
  *
- * Workers, Pages, Pages Functions, Durable Objects, Queues
+ * Workers, Pages, Pages Functions, Queues
  */
 
 import type { ProductDefinition } from './types';
@@ -70,37 +70,6 @@ export const COMPUTE_PRODUCTS: ProductDefinition[] = [
 		note: 'Static asset requests included. Pages Functions billed separately as Workers.',
 	},
 	{
-		id: 'durable_objects_requests',
-		name: 'Durable Objects Requests',
-		category: 'compute',
-		description: 'Total requests to Durable Objects',
-		defaultLimit: 1_000_000,
-		unit: 'requests',
-		dataset: 'durableObjectsInvocationsAdaptiveGroups',
-		field: 'requests',
-		aggregation: 'sum',
-		scope: 'account',
-		enabledByDefault: true,
-		docsUrl: 'https://developers.cloudflare.com/durable-objects/',
-		note: 'See developers.cloudflare.com/durable-objects/platform/pricing for details.',
-	},
-	{
-		id: 'durable_objects_storage',
-		name: 'Durable Objects Storage',
-		category: 'compute',
-		description: 'Storage used by Durable Objects (SQLite)',
-		defaultLimit: 5 * 1024 * 1024 * 1024,
-		unit: 'bytes',
-		dataset: 'durableObjectsStorageGroups',
-		field: 'storedBytes',
-		aggregation: 'max', // DO storage uses max aggregation like R2
-		scope: 'account',
-		filterField: 'date', // This dataset uses date filter, not datetime
-		enabledByDefault: true,
-		docsUrl: 'https://developers.cloudflare.com/durable-objects/',
-		note: 'See developers.cloudflare.com/durable-objects/platform/pricing for details.',
-	},
-	{
 		id: 'queues_messages',
 		name: 'Queues Messages',
 		category: 'compute',
@@ -146,21 +115,5 @@ export const COMPUTE_PRODUCTS: ProductDefinition[] = [
 		enabledByDefault: false, // Dataset not available on most accounts
 		docsUrl: 'https://developers.cloudflare.com/workers/platform/limits/',
 		note: 'External fetch() calls from Workers. Dataset may not be available on all accounts.',
-	},
-	// Durable Objects Subrequests
-	{
-		id: 'durable_objects_subrequests',
-		name: 'Durable Objects Subrequests',
-		category: 'compute',
-		description: 'Subrequests made by Durable Objects',
-		defaultLimit: 10_000_000,
-		unit: 'requests',
-		dataset: 'durableObjectsSubrequestsAdaptiveGroups',
-		field: '',
-		aggregation: 'count',
-		scope: 'account',
-		enabledByDefault: false, // Dataset not available on most accounts
-		docsUrl: 'https://developers.cloudflare.com/durable-objects/',
-		note: 'Subrequests made from Durable Objects. Dataset may not be available on all accounts.',
 	},
 ];

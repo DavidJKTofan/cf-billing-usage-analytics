@@ -1922,14 +1922,10 @@
         byCategory[cat].push(r);
       }
       
-      // Sort products within each category by percent used (descending)
+      // Sort products within each category alphabetically by name
       for (const cat of Object.keys(byCategory)) {
         byCategory[cat].sort((a, b) => {
-          const aNA = isNA(a);
-          const bNA = isNA(b);
-          if (aNA && !bNA) return 1;
-          if (!aNA && bNA) return -1;
-          return b.percentUsed - a.percentUsed;
+          return (a.productName || '').localeCompare(b.productName || '');
         });
       }
       
@@ -1959,6 +1955,84 @@
         const categoryHasIssues = stats.critical > 0 || stats.alert > 0 || stats.warning > 0;
         const shouldCollapse = hasGlobalAlerts && !categoryHasIssues;
         
+        // Render Zero Trust seats info card for connectivity category
+        let zeroTrustSeatsCard = '';
+        if (cat === 'connectivity' && dashboardData.zeroTrustSeats) {
+          const seats = dashboardData.zeroTrustSeats;
+          if (seats.error) {
+            // Show error state with helpful message
+            const isAuthError = seats.error.includes('403') || seats.error.includes('Authentication');
+            zeroTrustSeatsCard = `
+              <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                  </svg>
+                  <span style="font-weight: 600; color: var(--text-primary);">Zero Trust Seats</span>
+                  <a href="https://developers.cloudflare.com/cloudflare-one/team-and-resources/users/seat-management/" 
+                     target="_blank" rel="nofollow noopener" 
+                     style="margin-left: auto; font-size: 12px; color: var(--info); text-decoration: none;">
+                    Seat Management Docs →
+                  </a>
+                </div>
+                <div style="padding: 12px; background: var(--bg-primary); border-radius: 6px; border-left: 3px solid var(--warning);">
+                  <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">
+                    ${isAuthError 
+                      ? 'Unable to fetch Zero Trust seat data. The API token needs <strong>Access:Read</strong> permission.' 
+                      : 'Unable to fetch Zero Trust seat data.'}
+                  </div>
+                  <div style="font-size: 11px; color: var(--text-muted);">
+                    ${isAuthError 
+                      ? 'Add the "Zero Trust: Read" permission to your API token to enable seat tracking.'
+                      : seats.error}
+                  </div>
+                </div>
+              </div>
+            `;
+          } else {
+            // Show seat data
+            zeroTrustSeatsCard = `
+              <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--info)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                  </svg>
+                  <span style="font-weight: 600; color: var(--text-primary);">Zero Trust Seats</span>
+                  <a href="https://developers.cloudflare.com/cloudflare-one/team-and-resources/users/seat-management/" 
+                     target="_blank" rel="nofollow noopener" 
+                     style="margin-left: auto; font-size: 12px; color: var(--info); text-decoration: none;">
+                    Seat Management Docs →
+                  </a>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 16px;">
+                  <div style="text-align: center;">
+                    <div style="font-size: 24px; font-weight: 700; color: var(--info);">${seats.activeSeats.toLocaleString()}</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">Active Seats</div>
+                  </div>
+                  <div style="text-align: center;">
+                    <div style="font-size: 24px; font-weight: 700; color: var(--text-primary);">${seats.accessSeats.toLocaleString()}</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">Access Seats</div>
+                  </div>
+                  <div style="text-align: center;">
+                    <div style="font-size: 24px; font-weight: 700; color: var(--text-primary);">${seats.gatewaySeats.toLocaleString()}</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">Gateway Seats</div>
+                  </div>
+                  <div style="text-align: center;">
+                    <div style="font-size: 24px; font-weight: 700; color: var(--text-secondary);">${seats.totalUsers.toLocaleString()}</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">Total Users</div>
+                  </div>
+                </div>
+              </div>
+            `;
+          }
+        }
+        
         html += `
           <div class="category-section" data-category="${cat}">
             <div class="category-header ${shouldCollapse ? 'collapsed' : ''}" onclick="toggleCategory('${cat}')">
@@ -1976,6 +2050,7 @@
               </div>
             </div>
             <div class="category-products ${shouldCollapse ? 'collapsed' : ''}">
+              ${zeroTrustSeatsCard}
               <table class="usage-table">
                 <thead>
                   <tr>
@@ -2112,7 +2187,7 @@
           <td>
             <strong>${displayName}</strong>
             ${r.scope === 'zone' && !currentFilters.zoneId ? '<span style="font-size: 11px; color: var(--text-secondary); margin-left: 4px;">(zone)</span>' : ''}
-            ${isUnlimited ? '<span style="font-size: 11px; color: var(--success); margin-left: 4px;">(free)</span>' : ''}
+
             ${r.note ? `<span class="filter-help" title="${r.note}" style="margin-left: 4px; cursor: help;">(i)</span>` : ''}
             ${!isDisabledProduct && isNAProduct && r.error ? `<span class="filter-help" title="Error: ${r.error}" style="margin-left: 4px; cursor: help; color: var(--danger);">(!)</span>` : ''}
           </td>

@@ -8,6 +8,9 @@
 // Re-export types
 export * from './types';
 
+// Re-export Zero Trust seats module
+export * from './zero-trust-seats';
+
 // Import category-specific products
 import { COMPUTE_PRODUCTS } from './compute';
 import { STORAGE_PRODUCTS } from './storage';

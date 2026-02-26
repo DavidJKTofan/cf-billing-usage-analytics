@@ -27,6 +27,7 @@ import { UsageMonitorWorkflow, WorkflowEnv, WorkflowParams } from './workflow';
 import { queryAllProductUsage, queryAllConfiguredProductUsage, categorizeUsage, discoverDatasets, QueryFilterOptions } from './graphql';
 import { sendTestNotificationAuto, sendDiscordNotification } from './notifications';
 import { discoverZones } from './cloudflare-api';
+import { getZeroTrustSeats } from './products';
 import {
 	CONTRACT_CONFIG,
 	getCurrentBillingPeriod,
@@ -671,29 +672,27 @@ async function handleDashboard(env: Env, request?: Request): Promise<Response> {
 
 	let zonesAutoDiscovered = false;
 	let zonesDiscoveryError: string | undefined;
+	let availableZones: Array<{ id: string; name: string }> = [];
 
-	// Auto-discover zones if not configured and API is available
-	if (zoneTags.length === 0 && apiToken && accountId) {
+	// Discover zones once and reuse the result for both auto-discovery and dropdown
+	if (apiToken && accountId) {
 		const zoneDiscovery = await discoverZones(apiToken, accountId);
 		if (zoneDiscovery.error) {
 			zonesDiscoveryError = zoneDiscovery.error;
 		} else {
-			zoneTags = zoneDiscovery.zoneIds;
-			zonesAutoDiscovered = true;
+			// Populate available zones for dropdown
+			availableZones = zoneDiscovery.zones.map((z) => ({ id: z.id, name: z.name }));
+
+			// Auto-discover zone IDs if not configured
+			if (zoneTags.length === 0) {
+				zoneTags = zoneDiscovery.zoneIds;
+				zonesAutoDiscovered = true;
+			}
 		}
 	}
 
 	const billingPeriod = getCurrentBillingPeriod(CONTRACT_CONFIG);
 	const enabledProducts = getEnabledProducts(CONTRACT_CONFIG, zoneTags);
-
-	// Fetch zone details if we have zones (for zone filter dropdown)
-	let availableZones: Array<{ id: string; name: string }> = [];
-	if (apiToken && accountId && zoneTags.length > 0) {
-		const zoneDiscovery = await discoverZones(apiToken, accountId);
-		if (!zoneDiscovery.error) {
-			availableZones = zoneDiscovery.zones.map((z) => ({ id: z.id, name: z.name }));
-		}
-	}
 
 	// Basic dashboard data
 	const dashboard: Record<string, unknown> = {
@@ -736,10 +735,17 @@ async function handleDashboard(env: Env, request?: Request): Promise<Response> {
 		categoryOrder: ['network', 'security', 'compute', 'storage', 'ai', 'connectivity', 'media', 'platform'],
 	};
 
-	// If configured, fetch usage data for ALL products (enabled and disabled)
+	// If configured, fetch usage data and Zero Trust seats in parallel
 	if (apiToken && accountId) {
-		try {
-			const results = await queryAllConfiguredProductUsage(apiToken, accountId, zoneTags, filters);
+		// Fetch usage data and Zero Trust seats in parallel
+		const [usageResult, zeroTrustSeatsResult] = await Promise.allSettled([
+			queryAllConfiguredProductUsage(apiToken, accountId, zoneTags, filters),
+			getZeroTrustSeats(apiToken, accountId),
+		]);
+
+		// Process usage data
+		if (usageResult.status === 'fulfilled') {
+			const results = usageResult.value;
 			const summary = categorizeUsage(
 				results,
 				CONTRACT_CONFIG.alertThresholdPercent,
@@ -782,9 +788,28 @@ async function handleDashboard(env: Env, request?: Request): Promise<Response> {
 												: 'healthy',
 				})),
 			};
-		} catch (error) {
+		} else {
 			dashboard.usage = {
-				error: error instanceof Error ? error.message : 'Failed to fetch usage data',
+				error: usageResult.reason instanceof Error ? usageResult.reason.message : 'Failed to fetch usage data',
+			};
+		}
+
+		// Process Zero Trust seats data
+		if (zeroTrustSeatsResult.status === 'fulfilled') {
+			const seats = zeroTrustSeatsResult.value;
+			dashboard.zeroTrustSeats = {
+				totalUsers: seats.totalUsers,
+				accessSeats: seats.accessSeats,
+				gatewaySeats: seats.gatewaySeats,
+				activeSeats: seats.activeSeats,
+				error: seats.error,
+				durationMs: seats.durationMs,
+			};
+		} else {
+			dashboard.zeroTrustSeats = {
+				error: zeroTrustSeatsResult.reason instanceof Error
+					? zeroTrustSeatsResult.reason.message
+					: 'Failed to fetch Zero Trust seats',
 			};
 		}
 	}

@@ -96,12 +96,36 @@ public/
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `CLOUDFLARE_API_TOKEN_ANALYTICS_READ_ONLY` | **Yes** | [Cloudflare API Token](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) with `Analytics:Read` + `Zone:Read` permissions |
+| `CLOUDFLARE_API_TOKEN_ANALYTICS_READ_ONLY` | **Yes** | [Cloudflare API Token](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) - see [API Token Permissions](#api-token-permissions) below |
 | `CLOUDFLARE_ACCOUNT_ID` | **Yes** | Your account ID |
 | `DISCORD_WEBHOOK_URL` | No | For notifications |
 | `CLOUDFLARE_ZONE_TAGS` | No | Comma-separated zone IDs to restrict monitoring |
 | `API_ACCESS_KEY` | No | Protect sensitive endpoints (`/api/trigger`, `/api/test-discord`) |
 | `ALLOWED_ORIGINS` | No | CORS restriction (default: `*`) |
+
+### API Token Permissions
+
+Create an [API token](https://developers.cloudflare.com/fundamentals/api/get-started/create-token/) with the following permissions:
+
+| Permission | Scope | Required | Purpose |
+|------------|-------|----------|---------|
+| **Account Analytics** `Analytics:Read` | Read | **Yes** | Query GraphQL Analytics API for usage data |
+| **Zone** `Zone:Read` | Read | **Yes** | Auto-discover zones in your account |
+| **Access: Users** `Access:Users:Read` | Read | No | Fetch Zero Trust seat counts (Access + Gateway seats) |
+
+#### Zero Trust Seats
+
+The dashboard displays Zero Trust seat usage (Active Seats, Access Seats, Gateway Seats) in the "Zero Trust & Connectivity" category. This feature requires the **Access: Users Read** permission.
+
+Without this permission, the Zero Trust Seats card will show a helpful message explaining how to enable it. The rest of the dashboard will continue to work normally.
+
+The Zero Trust Users API endpoint (`/accounts/{account_id}/access/users`) returns user data including `access_seat` and `gateway_seat` boolean fields, which are used to calculate:
+- **Active Seats**: Users with either Access or Gateway seat (billed seats)
+- **Access Seats**: Users who have authenticated with Cloudflare Access
+- **Gateway Seats**: Users who have logged into the WARP client
+- **Total Users**: All users in the Zero Trust organization
+
+For more details, see [Cloudflare Zero Trust Seat Management](https://developers.cloudflare.com/cloudflare-one/team-and-resources/users/seat-management/).
 
 ### Contract Limits (`src/config.ts`)
 

@@ -129,8 +129,8 @@ export const NETWORK_PRODUCTS: ProductDefinition[] = [
 		defaultLimit: 10_000_000,
 		unit: 'requests',
 		dataset: 'loadBalancingRequestsAdaptiveGroups',
-		field: 'requests',
-		aggregation: 'sum',
+		field: '', // Uses count aggregation per Cloudflare docs
+		aggregation: 'count',
 		scope: 'zone',
 		enabledByDefault: true,
 		docsUrl: 'https://developers.cloudflare.com/load-balancing/',

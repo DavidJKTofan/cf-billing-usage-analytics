@@ -104,7 +104,44 @@ const CONFIDENCE_LEVEL = 0.95;
 const NO_CONFIDENCE_DATASETS = [
 	'cacheReserveStorageAdaptiveGroups', // Only has avg, dimensions, max - no confidence
 	'durableObjectsStorageGroups', // Only has max, dimensions - no confidence
+	'streamMinutesViewedAdaptiveGroups', // Stream datasets use simpler schema
+	'streamMinutesStoredAdaptiveGroups', // Stream datasets use simpler schema
+	'r2StorageAdaptiveGroups', // R2 storage uses max aggregation, no confidence
+	'loadBalancingRequestsAdaptiveGroups', // Load Balancing uses count only, no sum
+	'httpRequests1dGroups', // Daily rollup tables don't support confidence
+	'httpRequests1hGroups', // Hourly rollup tables don't support confidence
+	'httpRequests1mGroups', // Minute rollup tables don't support confidence
 ];
+
+/**
+ * Datasets with limited time range support.
+ * These datasets have a maximum query time range (in seconds).
+ * If the billing period exceeds this, we query only the last N seconds.
+ */
+const LIMITED_TIME_RANGE_DATASETS: Record<string, number> = {
+	'loadBalancingRequestsAdaptiveGroups': 604800, // 7 days max
+	'accessLoginRequestsAdaptiveGroups': 604800, // ~7 days retention
+};
+
+/**
+ * Get adjusted start date for datasets with limited time ranges
+ */
+function getAdjustedStartDate(dataset: string, billingStart: Date, billingEnd: Date): Date {
+	const maxRangeSeconds = LIMITED_TIME_RANGE_DATASETS[dataset];
+	if (!maxRangeSeconds) {
+		return billingStart;
+	}
+
+	const billingRangeMs = billingEnd.getTime() - billingStart.getTime();
+	const maxRangeMs = maxRangeSeconds * 1000;
+
+	if (billingRangeMs > maxRangeMs) {
+		// Return a start date that's maxRangeSeconds before the end date
+		return new Date(billingEnd.getTime() - maxRangeMs);
+	}
+
+	return billingStart;
+}
 
 /**
  * Build the aggregation fields part of the query based on aggregation type.
@@ -495,8 +532,17 @@ export async function queryProductUsage(
 		const filterField = product.filterField || 'datetime';
 		const aggregation = product.aggregation || 'sum';
 		const dimensionFilters = product.dimensionFilters;
-		const start = formatDateForQuery(billingStart, filterField);
+
+		// Adjust start date for datasets with limited time range support
+		const adjustedStart = getAdjustedStartDate(product.dataset, billingStart, billingEnd);
+		const start = formatDateForQuery(adjustedStart, filterField);
 		const end = formatDateForQuery(billingEnd, filterField);
+
+		// Add note if time range was limited
+		if (adjustedStart.getTime() > billingStart.getTime()) {
+			const maxDays = Math.round((billingEnd.getTime() - adjustedStart.getTime()) / (1000 * 60 * 60 * 24));
+			result.note = `${product.note || ''} (Limited to last ${maxDays} days due to dataset retention)`.trim();
+		}
 
 		if (product.scope === 'account') {
 			// Account-scoped query

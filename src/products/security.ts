@@ -138,21 +138,4 @@ export const SECURITY_PRODUCTS: ProductDefinition[] = [
 		docsUrl: 'https://developers.cloudflare.com/dmarc-management/',
 		note: 'Enable if you use DMARC Management. Dataset may not be available on all accounts.',
 	},
-	// Magic Firewall - Standard included with Magic Transit/WAN
-	{
-		id: 'magic_firewall_packets',
-		name: 'Magic Firewall Packets',
-		category: 'security',
-		description: 'Packets processed by Magic Firewall (included with Magic Transit/WAN)',
-		defaultLimit: 0,
-		unit: 'packets',
-		dataset: 'magicFirewallNetworkAnalyticsAdaptiveGroups',
-		field: 'packets',
-		aggregation: 'sum',
-		scope: 'account',
-		enabledByDefault: true,
-		unlimited: true,
-		docsUrl: 'https://developers.cloudflare.com/magic-firewall/',
-		note: 'Included with Magic Transit/WAN. No separate charge for Magic Firewall packet processing.',
-	},
 ];

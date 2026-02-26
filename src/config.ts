@@ -71,6 +71,9 @@ export const CONTRACT_CONFIG: ContractConfig = {
 		// Workers AI Requests: 35,000 per billing period
 		workers_ai_requests: { limit: 35_000, enabled: true },
 
+		// R2 Storage: 300 GB contract cap
+		r2_storage: { limit: 300 * 1024 * 1024 * 1024, enabled: true }, // 300 GB in bytes
+
 		// Example: Override Workers request limit
 		// workers_requests: { limit: 50_000_000, enabled: true },
 

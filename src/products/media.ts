@@ -18,6 +18,7 @@ export const MEDIA_PRODUCTS: ProductDefinition[] = [
 		field: 'minutesViewed',
 		aggregation: 'sum',
 		scope: 'account',
+		filterField: 'date', // Stream uses date filter per docs
 		enabledByDefault: true,
 		docsUrl: 'https://developers.cloudflare.com/stream/',
 		note: 'Billed per 1k minutes delivered. Enterprise: contracted amount with soft cap. See developers.cloudflare.com/stream/pricing.',
@@ -33,6 +34,7 @@ export const MEDIA_PRODUCTS: ProductDefinition[] = [
 		field: 'minutesStored',
 		aggregation: 'sum',
 		scope: 'account',
+		filterField: 'date', // Stream uses date filter per docs
 		enabledByDefault: false, // Dataset not available on most accounts - enable if you use Stream
 		docsUrl: 'https://developers.cloudflare.com/stream/',
 		note: 'Billed per 1k minutes stored (prepaid). Includes encoding. See developers.cloudflare.com/stream/pricing.',
