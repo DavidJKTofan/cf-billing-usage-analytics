@@ -1260,6 +1260,11 @@
             <label for="filter-exclude-blocked" class="filter-label">Exclude blocked (403)</label>
             <span class="filter-help" title="Excludes requests blocked by WAF/DDoS protection (403 status). Helps approximate billable traffic.">(i)</span>
           </div>
+          <div class="filter-group">
+            <input type="checkbox" id="filter-exclude-cdncgi" class="filter-checkbox" onchange="applyFilters()">
+            <label for="filter-exclude-cdncgi" class="filter-label">Exclude /cdn-cgi/</label>
+            <span class="filter-help" title="Excludes /cdn-cgi/ internal Cloudflare traffic (bot management, RUM, Zaraz, etc.) which is generally not billed. Note: /cdn-cgi/image/ and /cdn-cgi/imagedelivery/ ARE billed separately.">(i)</span>
+          </div>
           <div class="filter-group" style="border-left: 1px solid var(--border-color); padding-left: 16px; margin-left: 8px;">
             <input type="checkbox" id="filter-hide-na" class="filter-checkbox" onchange="applyDisplayFilters()" checked>
             <label for="filter-hide-na" class="filter-label">Hide N/A products</label>
@@ -1711,6 +1716,7 @@
       if (currentFilters.eyeballOnly) params.set('eyeballOnly', 'true');
       if (currentFilters.excludeEdgeWorkers) params.set('excludeEdgeWorkers', 'true');
       if (currentFilters.excludeBlocked) params.set('excludeBlocked', 'true');
+      if (currentFilters.excludeCdnCgi) params.set('excludeCdnCgi', 'true');
       return params.toString() ? '?' + params.toString() : '';
     }
 
@@ -1731,6 +1737,7 @@
       currentFilters.eyeballOnly = document.getElementById('filter-eyeball').checked;
       currentFilters.excludeEdgeWorkers = document.getElementById('filter-exclude-edgeworkers').checked;
       currentFilters.excludeBlocked = document.getElementById('filter-exclude-blocked').checked;
+      currentFilters.excludeCdnCgi = document.getElementById('filter-exclude-cdncgi').checked;
       
       updateFilterStatus();
       showLoading(true);
@@ -1804,6 +1811,7 @@
       document.getElementById('filter-eyeball').checked = dashboardData.filters?.eyeballOnly || false;
       document.getElementById('filter-exclude-edgeworkers').checked = dashboardData.filters?.excludeEdgeWorkers || false;
       document.getElementById('filter-exclude-blocked').checked = dashboardData.filters?.excludeBlocked || false;
+      document.getElementById('filter-exclude-cdncgi').checked = dashboardData.filters?.excludeCdnCgi || false;
 
       // Calculate critical count (>100%) - exclude disabled products
       const results = usage?.results || [];

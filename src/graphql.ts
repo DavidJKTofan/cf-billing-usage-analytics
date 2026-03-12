@@ -47,6 +47,16 @@ export interface QueryFilterOptions {
 	excludeBlocked?: boolean;
 
 	/**
+	 * Exclude /cdn-cgi/ internal Cloudflare product traffic.
+	 * Most /cdn-cgi/ paths are excluded from billing (challenge-platform, rum, zaraz, etc.)
+	 * but appear in analytics. Some paths like /cdn-cgi/image/ ARE billed separately.
+	 * Uses the `like` operator with clientRequestPath field.
+	 * Only applies to datasets that support clientRequestPath filtering.
+	 * @see https://developers.cloudflare.com/fundamentals/reference/cdn-cgi-endpoint/
+	 */
+	excludeCdnCgi?: boolean;
+
+	/**
 	 * Filter to a specific zone ID. When set:
 	 * - Only zone-scoped products are queried for this specific zone
 	 * - Account-scoped products are hidden from results
@@ -202,6 +212,15 @@ const STATUS_FILTER_SUPPORTED_DATASETS = [
 ];
 
 /**
+ * Datasets that support the clientRequestPath filter (using `like` operator)
+ * This allows filtering by URL path patterns like /cdn-cgi/%
+ * Note: Most zone-scoped HTTP datasets support this field.
+ */
+const PATH_FILTER_SUPPORTED_DATASETS = [
+	'httpRequestsAdaptiveGroups',
+];
+
+/**
  * Build additional filter conditions based on filter options
  */
 function buildAdditionalFilters(dataset: string, filters?: QueryFilterOptions): string {
@@ -224,6 +243,14 @@ function buildAdditionalFilters(dataset: string, filters?: QueryFilterOptions): 
 	// Only add status filter for supported datasets
 	if (filters.excludeBlocked && STATUS_FILTER_SUPPORTED_DATASETS.includes(dataset)) {
 		conditions.push('edgeResponseStatus_neq: 403');
+	}
+
+	// Exclude /cdn-cgi/ internal Cloudflare product traffic
+	// Uses the `like` operator with % wildcard for path pattern matching
+	// Note: Some /cdn-cgi/ paths ARE billed (image/, imagedelivery/, media/)
+	// but those are separate products, not counted in HTTP requests billing
+	if (filters.excludeCdnCgi && PATH_FILTER_SUPPORTED_DATASETS.includes(dataset)) {
+		conditions.push('clientRequestPath_notlike: "/cdn-cgi/%"');
 	}
 
 	return conditions.length > 0 ? `, ${conditions.join(', ')}` : '';

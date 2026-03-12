@@ -345,6 +345,7 @@ function parseFilterOptions(url: URL, request?: Request): QueryFilterOptions {
 		eyeballOnly: url.searchParams.get('eyeballOnly') === 'true',
 		excludeEdgeWorkers: url.searchParams.get('excludeEdgeWorkers') === 'true',
 		excludeBlocked: url.searchParams.get('excludeBlocked') === 'true',
+		excludeCdnCgi: url.searchParams.get('excludeCdnCgi') === 'true',
 		zoneId: zoneId || undefined,
 	};
 }
@@ -421,6 +422,7 @@ async function handleCheck(request: Request, env: Env, ctx: ExecutionContext): P
 			eyeballOnly: filters.eyeballOnly,
 			excludeEdgeWorkers: filters.excludeEdgeWorkers,
 			excludeBlocked: filters.excludeBlocked,
+			excludeCdnCgi: filters.excludeCdnCgi,
 		},
 		summary: {
 			alerts: summary.alerts.length,
@@ -708,6 +710,7 @@ async function handleDashboard(env: Env, request?: Request): Promise<Response> {
 			eyeballOnly: filters.eyeballOnly || false,
 			excludeEdgeWorkers: filters.excludeEdgeWorkers || false,
 			excludeBlocked: filters.excludeBlocked || false,
+			excludeCdnCgi: filters.excludeCdnCgi || false,
 			zoneId: filters.zoneId || null,
 		},
 		zones: {

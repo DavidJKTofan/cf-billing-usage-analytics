@@ -16,6 +16,12 @@ Key differences:
 - Use `eyeballOnly=true` filter to approximate billable traffic (shows only real visitor requests)
 - Actual billing excludes attack traffic and uses different data sources
 
+### /cdn-cgi/ Traffic
+
+The [`/cdn-cgi/` endpoint](https://developers.cloudflare.com/fundamentals/reference/cdn-cgi-endpoint/) is managed by Cloudflare for internal product functionality. This traffic is generally (for the most part) **excluded from billing**, but appears in GraphQL Analytics.
+
+**Filter Option:** Enable the "Exclude /cdn-cgi/" filter in the dashboard to exclude this internal traffic from your metrics. The GraphQL API supports path filtering using the `clientRequestPath` field with the `like` operator.
+
 ### Confidence Intervals
 
 The dashboard displays [confidence intervals](https://developers.cloudflare.com/analytics/graphql-api/features/confidence-intervals/) for sampled data, showing how accurate each estimate is:
@@ -188,8 +194,9 @@ Common cron patterns:
 | `eyeballOnly=true` | **Recommended.** Only real visitor requests, excludes internal Cloudflare traffic |
 | `excludeEdgeWorkers=true` | Exclude requests from Workers `fetch()` calls |
 | `excludeBlocked=true` | Exclude blocked requests (403 status) |
+| `excludeCdnCgi=true` | Exclude `/cdn-cgi/` internal traffic (not billed for some paths) |
 
-These filters apply to HTTP Requests, Bandwidth, and WAF Events datasets.
+These filters apply to HTTP Requests, Bandwidth, and WAF Events datasets. See [/cdn-cgi/ Traffic](#cdn-cgi-traffic) for details.
 
 ## Notifications
 
@@ -337,10 +344,11 @@ npm run deploy       # Deploy to Cloudflare
 |-------|----------|
 | Products showing 0 | Feature may not be enabled on zone, or no usage this period |
 | GraphQL "unknown field" | Dataset not available for your account. The product is auto-disabled. Enable manually in config if you use the feature. |
-| "time range is too large" | Some datasets (Turnstile, Access Login) have ~7 day retention limits. These are disabled by default. |
+| "time range is too large" | Some datasets (Turnstile, Load Balancing, Access Login) have ~7 day retention limits. Query is automatically limited to available time range. |
 | No zone data | Check `/api/zones`; ensure token has `Zone:Read` permission |
 | Discord not working | Test with `POST /api/test-discord`; check webhook URL |
 | Many products disabled | Products are disabled if their GraphQL dataset isn't available on your account. Enable in `CONTRACT_CONFIG.productOverrides` if you use them. |
+| Usage higher than billing | GraphQL Analytics includes `/cdn-cgi/` traffic that may be excluded from billing. Enable the "Exclude /cdn-cgi/" filter or see [/cdn-cgi/ Traffic](#cdn-cgi-traffic). |
 
 ### Additional Hardening (Optional)
 
