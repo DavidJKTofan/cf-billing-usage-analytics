@@ -365,6 +365,8 @@ For additional security, consider:
 - https://github.com/gladston3/cf-reporting 
 - https://github.com/felipefischel/cloudflare-enterprise-usage-dashboard 
 
+> _Another idea is to build on top of the [Data Platform](https://blog.cloudflare.com/cloudflare-data-platform/), taking advantage of [Logpush](https://developers.cloudflare.com/logs/logpush/)._
+
 * * * * 
 
 ## Disclaimer
