@@ -358,6 +358,15 @@ For additional security, consider:
 2. **Custom Domain**: Use a custom domain with additional security headers
 3. **Rate Limiting**: Configure Cloudflare Rate Limiting rules
 
+* * * *
+
+## Inspiration / Other Projects
+
+- https://github.com/gladston3/cf-reporting 
+- https://github.com/felipefischel/cloudflare-enterprise-usage-dashboard 
+
+* * * * 
+
 ## Disclaimer
 
 This project is provided **"as is"** for **educational and demonstration purposes only**. Do not use in production, adapt to your own needs. There are likely non-accurate or missing products and details.
